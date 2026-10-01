@@ -1,7 +1,7 @@
 # AI Nexus v1 — Requirements & Architecture Specification
 
-- **Status:** Draft — Stage 3B.1
-- **Version:** 0.1
+- **Status:** Draft — Stage 3B.2
+- **Version:** 0.2
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 
@@ -319,38 +319,395 @@ These are scope boundaries, not changes to the accepted architectural decisions.
 
 ---
 
-# 8. Stage 3B Architecture Work Plan
+# 8. Enterprise Architecture
 
-The following sections will be added incrementally and must contain **new specification detail**, not copies of the ADRs:
+This section defines the **v1 concrete system decomposition**. It does not replace the plane and runtime decisions in the ADRs; it assigns implementable responsibilities to those architectural areas.
 
-1. Enterprise architecture.
-2. Control Plane / Execution Plane / Shared Capabilities.
-3. Logical service/module boundaries.
-4. Artifact and dependency model.
-5. PostgreSQL + pgvector data architecture.
-6. LLM Gateway + Model Router contracts.
-7. Agent Runtime / Tool Runtime / RAG Runtime contracts and state models.
-8. Governance and authorization flows.
-9. Security threat model implementation requirements.
-10. Evaluation/scoring model and release gates.
-11. Causal observability schema and retention model.
-12. AI FinOps and business-value measurement model.
-13. AI Marketplace lifecycle and interfaces.
-14. MCP/tool integration contracts.
-15. Copilot Studio integration contract and enforcement boundaries.
-16. Node.js/Python service allocation and secure service-to-service communication.
-17. CI/CD, dependency detection, and release gates.
-18. Terraform/IaC resource topology.
-19. Deployment topology.
-20. MVP/v1 versus future enterprise capabilities.
-21. Production/demo hosting strategy.
-22. Implementation phases and acceptance criteria.
+## 8.1 Logical architecture
 
-Each section MUST identify its relevant ADR basis without duplicating the ADR content.
+```text
+                         External Users / Systems
+                                  |
+                         [ API / Edge Boundary ]
+                                  |
+                         [ Identity / Context ]
+                                  |
+                    +-------------+-------------+
+                    |                           |
+              CONTROL PLANE              EXECUTION PLANE
+                    |                           |
+        +-----------+-----------+       +-------+--------+
+        |           |           |       |       |        |
+     Registry    Policy      Eval/     Agent   LLM      RAG
+     /Version    /Governance  Release  Runtime Gateway Runtime
+        |           |           |       |       |        |
+        |           +-----------+-------+-------+--------+
+        |                       |       |
+        |                    Tool/MCP  Approval /
+        |                    Runtime   Authorization
+        |                       |       |
+        +-----------------------+-------+----------------+
+                                |
+                        SHARED CAPABILITIES
+                                |
+             +------------------+-------------------+
+             |          |          |        |       |
+          Identity   Audit      Causal   FinOps   Artifact
+          /RBAC      /Evidence  Trace    /Value   Graph
+                                |
+                         PostgreSQL + pgvector
+```
+
+The diagram is a logical architecture. v1 deployment units MAY combine multiple logical components where doing so does not violate domain ownership, security, or independent scaling requirements.
+
+## 8.2 Request path
+
+A governed execution follows this logical sequence:
+
+```text
+Ingress
+  -> authenticate caller
+  -> establish request / tenant / actor context
+  -> resolve requested capability
+  -> authorize request
+  -> resolve immutable artifact versions
+  -> create causal execution context
+  -> execute Agent workflow
+       -> LLM Gateway / Model Router
+       -> RAG Runtime
+       -> Tool/MCP Runtime
+       -> action-level authorization where required
+  -> validate / finalize response
+  -> persist execution evidence
+  -> expose response
+```
+
+The exact runtime state machine is deferred to the runtime architecture section; this section establishes only the system-level responsibility flow.
+
+## 8.3 Control Plane responsibilities
+
+The v1 Control Plane owns lifecycle and governance operations including:
+
+- artifact registration and version metadata;
+- Agent and capability registry operations;
+- policy lifecycle and policy version references;
+- evaluation configuration and release decisions;
+- dependency graph construction and impact analysis;
+- Marketplace publication/discovery metadata;
+- model/provider configuration metadata;
+- administrative and audit-oriented views.
+
+Control Plane operations MUST NOT become an alternate execution path around the Execution Plane.
+
+**Basis:** [ADR-002](../adr/ADR-002-control-execution-planes.md), [ADR-003](../adr/ADR-003-immutable-versioned-artifacts.md), [ADR-004](../adr/ADR-004-modular-microservice-ready-architecture.md)
+
+## 8.4 Execution Plane responsibilities
+
+The v1 Execution Plane owns live governed execution:
+
+- Agent workflow execution;
+- LLM requests through the Gateway;
+- governed retrieval;
+- governed Tool/MCP invocation;
+- action-level authorization and policy checks;
+- runtime execution state;
+- response validation/finalization.
+
+The Execution Plane MUST consume authoritative lifecycle/configuration state rather than creating independent copies of policies, artifacts, or provider configuration.
+
+**Basis:** [ADR-002](../adr/ADR-002-control-execution-planes.md), [ADR-007](../adr/ADR-007-llm-gateway-model-routing.md), [ADR-008](../adr/ADR-008-agent-runtime.md)
+
+## 8.5 Shared capabilities
+
+Shared capabilities provide cross-cutting infrastructure used by both planes:
+
+| Capability | v1 responsibility |
+|---|---|
+| Identity/context | Authentication context and service identity propagation |
+| RBAC/authorization | Authorization decision interface |
+| Policy | Effective policy resolution/evaluation |
+| Version registry | Immutable artifact/version lookup |
+| Dependency graph | Dependency and impact queries |
+| Causal observability | Trace/event correlation |
+| Audit evidence | Durable governance/security evidence |
+| FinOps | Usage/cost attribution |
+| PostgreSQL/pgvector | Platform persistence and vector retrieval |
+
+Shared capabilities MUST expose contracts rather than allowing arbitrary direct access to their internal implementation.
 
 ---
 
-# 9. Traceability Model
+# 9. Logical Service and Module Boundaries
+
+The v1 uses logical service boundaries while permitting a smaller number of deployment units. A logical boundary is defined by responsibility, owned data, API contract, security boundary, and future scaling/extraction need.
+
+## 9.1 Logical components
+
+| Component | Primary responsibility | Plane | v1 runtime |
+|---|---|---|---|
+| API / Edge | External ingress and integration boundary | Shared/Edge | TypeScript |
+| Identity / Authorization | Caller/service identity context and authorization interface | Shared | TypeScript |
+| Artifact Registry | Versioned AI artifact metadata | Control | TypeScript |
+| Dependency Graph | Derived dependency graph and impact analysis | Control | TypeScript |
+| Policy Registry / Evaluator | Versioned policies and effective policy decisions | Control/Shared | TypeScript |
+| Agent Registry | Agent metadata, versions, lifecycle state | Control | TypeScript |
+| Evaluation Service | Evaluation orchestration and release signals | Control | Python |
+| Marketplace | Discovery and governed publication metadata | Control | TypeScript |
+| LLM Gateway | Single governed LLM access boundary | Execution/Shared | TypeScript |
+| Model Router | Constraint filtering and model selection | Execution/Shared | TypeScript |
+| Agent Runtime | Agent workflow state/orchestration | Execution | TypeScript |
+| RAG Runtime | Ingestion/retrieval orchestration | Execution/Worker | TypeScript + Python workers |
+| Tool/MCP Runtime | Tool registration, authorization handoff and execution | Execution | TypeScript |
+| Observability | Causal traces/events and query surface | Shared | TypeScript integration + telemetry stack |
+| FinOps / Value | Usage, pricing, cost and value records | Shared/Control | TypeScript |
+| Audit | Governance/security evidence access | Shared/Control | TypeScript |
+
+The table is a logical ownership model, not a mandate for one process/container per row.
+
+## 9.2 Deployment-unit rule
+
+For v1, the default deployment grouping SHOULD be:
+
+```text
+1. control-plane-api
+2. execution-runtime
+3. python-workers
+4. web-ui
+5. PostgreSQL + pgvector
+6. observability infrastructure
+```
+
+A component MAY be split into an independent service when it has a concrete requirement for independent scaling, isolation, deployment cadence, security boundary, or operational ownership.
+
+The initial grouping MUST NOT create direct database ownership violations between logical components.
+
+## 9.3 Contract boundary rules
+
+- A component MUST expose an explicit interface for capabilities used outside its ownership boundary.
+- Components MUST NOT directly mutate another component's owned data tables as an integration mechanism.
+- Cross-language communication MUST use language-neutral contracts.
+- Cross-plane calls MUST preserve identity, authorization context, artifact versions, and causal correlation where applicable.
+- Internal implementation details MUST NOT become public integration contracts accidentally.
+
+**Basis:** [ADR-004](../adr/ADR-004-modular-microservice-ready-architecture.md), [ADR-005](../adr/ADR-005-polyglot-runtime-typescript-python.md), [ADR-018](../adr/ADR-018-production-deployment-and-iac.md)
+
+---
+
+# 10. Control Plane / Execution Plane / Shared Capability Interfaces
+
+## 10.1 Control-to-execution contract
+
+The Control Plane exposes authoritative version/configuration information to the Execution Plane through read-oriented contracts. The Execution Plane does not write lifecycle state directly as a substitute for Control Plane workflows.
+
+Minimum contract concepts:
+
+```text
+ArtifactRef
+  artifactType
+  artifactId
+  version
+
+PolicyRef
+  policyId
+  version
+
+ExecutionContext
+  executionId
+  actor
+  serviceIdentity
+  authorizationContext
+  artifactSet
+  policySet
+  correlationId
+```
+
+These are specification concepts; concrete API schemas will be defined in the relevant runtime/data sections.
+
+## 10.2 Execution-to-shared-capability contract
+
+Execution components MUST use shared contracts for:
+
+- authorization decisions;
+- policy resolution;
+- artifact/version lookup;
+- causal event emission;
+- usage/cost reporting;
+- audit evidence emission.
+
+A runtime component MUST NOT implement a private authorization mechanism that can contradict the authoritative platform authorization path.
+
+## 10.3 Failure behavior
+
+A shared dependency failure MUST produce a defined failure mode rather than an implicit bypass.
+
+Examples:
+
+| Failure | Required behavior |
+|---|---|
+| Authorization unavailable | Fail closed for protected action |
+| Policy resolution unavailable | Do not execute protected action |
+| Artifact version unavailable | Do not silently substitute another version |
+| LLM provider unavailable | Gateway returns governed provider failure/fallback outcome |
+| RAG unavailable | Follow capability-specific fail/deny behavior; never bypass data authorization |
+| Tool authorization unavailable | Do not execute tool action |
+| Observability sink degraded | Preserve minimum required evidence locally/through durable fallback where defined; do not disable governance |
+
+Exact fallback and retry policies will be defined in the relevant service sections.
+
+---
+
+# 11. Artifact and Dependency Model
+
+This section defines the v1 specification model for how versioned artifacts participate in dependency management. ADR-003 remains authoritative for the architectural decision.
+
+## 11.1 Artifact identity
+
+Every material artifact MUST be addressable as:
+
+```text
+ArtifactRef = (artifactType, artifactId, version)
+```
+
+The logical artifact identity is stable across versions. A version is immutable after publication.
+
+Initial artifact types include:
+
+- Agent
+- Prompt / instruction asset
+- Policy
+- Tool / MCP capability
+- Knowledge source / document version
+- Evaluation configuration
+- Evaluation dataset version
+- Model/provider configuration
+- Deployment artifact
+
+The v1 registry MAY introduce additional artifact types without changing the core identity model.
+
+## 11.2 Dependency edge
+
+A dependency edge MUST capture at minimum:
+
+```text
+sourceArtifact
+sourceVersion
+edgeType
+ targetArtifact
+targetVersion / versionConstraint
+origin
+createdAt
+```
+
+`origin` distinguishes automatically observed/derived dependency evidence from explicitly declared dependency metadata.
+
+## 11.3 Dependency graph requirements
+
+- The graph MUST be derived from artifact metadata and/or observable integration evidence.
+- A graph update MUST be attributable to the source evidence that produced it.
+- Dependency changes MUST support transitive impact queries.
+- A release MUST be able to determine whether changed dependencies affect its execution set.
+- The graph MUST support version-specific relationships; a dependency on `Agent A v3` is not equivalent to a dependency on `Agent A v4`.
+
+## 11.4 Reproducible execution set
+
+A production execution MUST resolve an immutable execution set sufficient to identify the material versions used, including where applicable:
+
+```text
+Agent version
+Prompt/instruction version
+Policy version(s)
+Model/provider configuration version
+RAG knowledge/document/chunk versions
+Embedding configuration/version
+Tool/MCP version
+Evaluation/release reference
+Deployment version
+```
+
+Not every execution will use every artifact type; the recorded execution set MUST contain the applicable subset.
+
+## 11.5 Release impact analysis
+
+A dependency change SHOULD produce:
+
+```text
+Changed artifact
+   ↓
+Direct dependents
+   ↓
+Transitive dependents
+   ↓
+Affected environments / releases
+   ↓
+Required evaluation / approval gates
+```
+
+The implementation MUST distinguish informational impact from blocking impact. Blocking rules are release-policy configuration, not hard-coded graph semantics.
+
+**Basis:** [ADR-003](../adr/ADR-003-immutable-versioned-artifacts.md), [ADR-012](../adr/ADR-012-ai-evaluation.md)
+
+---
+
+# 12. Node.js / Python Allocation
+
+The v1 language allocation follows the accepted polyglot strategy while making the boundary concrete.
+
+## 12.1 TypeScript / Node.js
+
+TypeScript/Node.js owns the request-oriented platform path:
+
+- API / Edge
+- Control Plane APIs
+- registries
+- policy APIs/evaluation orchestration
+- LLM Gateway
+- Model Router
+- Agent Runtime
+- Tool/MCP Runtime
+- Marketplace
+- FinOps APIs
+- audit/query APIs
+- runtime integration/orchestration
+
+## 12.2 Python
+
+Python owns computation-heavy or ML-oriented worker responsibilities:
+
+- evaluation workers
+- embedding/document processing workers
+- offline evaluation jobs
+- future ML-specific analysis workers where justified
+
+Python workers MUST NOT expose an alternate uncontrolled LLM access path. When they require governed AI capabilities, they use the same platform contract as other callers.
+
+## 12.3 Language-neutral communication
+
+Node.js and Python components MUST communicate through versioned, language-neutral contracts. v1 SHOULD use HTTP/JSON for synchronous control/runtime APIs and a durable job/event mechanism for asynchronous worker workloads.
+
+The exact messaging technology is deferred until the deployment and workload requirements are specified; introducing a broker is not assumed solely because Python workers exist.
+
+**Basis:** [ADR-005](../adr/ADR-005-polyglot-runtime-typescript-python.md)
+
+---
+
+# 13. Stage 3B.2 Acceptance Criteria
+
+Stage 3B.2 is complete when:
+
+- **AC-ARCH-001:** Every v1 capability has an identifiable logical owner and plane assignment.
+- **AC-ARCH-002:** Control Plane and Execution Plane responsibilities are distinguishable without duplicating ADR rationale.
+- **AC-ARCH-003:** v1 logical service/module boundaries identify responsibility, runtime language, and ownership.
+- **AC-ARCH-004:** v1 deployment grouping is defined without requiring one deployment unit per logical component.
+- **AC-ARCH-005:** Cross-component contract rules prevent direct cross-domain database mutation.
+- **AC-ARCH-006:** Material artifact identity and dependency edges are version-aware.
+- **AC-ARCH-007:** The execution set is sufficient to reconstruct the material versions used by an execution.
+- **AC-ARCH-008:** Node.js/Python responsibilities and communication boundaries are explicit.
+- **AC-ARCH-009:** Failure of authorization or policy services cannot silently result in protected execution.
+- **AC-ARCH-010:** Each section identifies its authoritative ADR basis without copying the ADR decision text.
+
+---
+
+# 14. Traceability Model
 
 The specification will maintain explicit traceability from requirements to architectural decisions and, as implementation is defined, to components and acceptance tests.
 
@@ -384,7 +741,7 @@ The traceability matrix will be expanded as Stage 3B sections become concrete.
 
 ---
 
-# 10. Change Management Rule
+# 15. Change Management Rule
 
 When an accepted ADR changes:
 
@@ -401,6 +758,6 @@ This prevents architectural decisions from being duplicated across documents whi
 
 ## Current Stage
 
-**Stage 3B.1 — Requirements foundation**
+**Stage 3B.2 — Enterprise Architecture, Plane Boundaries, Logical Service/Module Boundaries, Artifact/Dependency Model, and Node.js/Python Allocation**
 
-Next review target: **Stage 3B.2 — Enterprise Architecture, Plane Boundaries, Logical Service/Module Boundaries, Artifact/Dependency Model, and Node.js/Python Allocation.**
+Next review target: **Stage 3B.3 — PostgreSQL + pgvector Data Architecture, LLM Gateway + Model Router Contracts, and Runtime Contracts/State Models.**
