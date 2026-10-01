@@ -10,7 +10,9 @@ The ADRs are intentionally being introduced before implementation so the impleme
 - **Accepted** — reviewed and approved for implementation.
 - **Superseded** — replaced by a later ADR.
 
-The ADRs are reviewed sequentially before implementation. The working process is:
+The ADRs have completed the review/approval phase and are now the accepted architectural baseline for implementation and the Stage 3B requirements/architecture specification.
+
+The working process is:
 
 ```text
 Review ADR
@@ -21,9 +23,11 @@ Identify missing, ambiguous, or conflicting decisions
    ↓
 Update ADR
    ↓
+Accept
+   ↓
 Commit
    ↓
-Proceed to next ADR
+Proceed to requirements and implementation planning
 ```
 
 The ADR phase is deliberately documentation-first. No implementation decision should be inferred from code because the platform implementation follows these architectural decisions.
@@ -32,24 +36,24 @@ The ADR phase is deliberately documentation-first. No implementation decision sh
 
 | ADR | Decision | Status |
 |---|---|---|
-| [001](./ADR-001-enterprise-ai-platform-scope.md) | Enterprise AI platform scope and boundary | Proposed |
-| [002](./ADR-002-control-execution-planes.md) | Control Plane vs Execution Plane with shared capabilities | Proposed |
-| [003](./ADR-003-immutable-versioned-artifacts.md) | Immutable versioned artifacts and automated dependency graph | Proposed |
-| [004](./ADR-004-modular-microservice-ready-architecture.md) | Modular, microservice-ready architecture | Proposed |
-| [005](./ADR-005-polyglot-runtime-typescript-python.md) | Polyglot TypeScript/Node.js and Python runtime strategy | Proposed |
-| [006](./ADR-006-postgresql-pgvector.md) | PostgreSQL + pgvector as the platform data foundation | Proposed |
-| [007](./ADR-007-llm-gateway-model-routing.md) | Central LLM Gateway and policy-driven model routing | Proposed |
-| [008](./ADR-008-agent-runtime.md) | Explicit agent runtime separation and governed execution | Proposed |
-| [009](./ADR-009-rag-and-knowledge-versioning.md) | Governed RAG, provenance, and source versioning | Proposed |
-| [010](./ADR-010-immutable-versioned-policies.md) | Policies as immutable versioned governance artifacts | Proposed |
-| [011](./ADR-011-ai-security-architecture.md) | AI security architecture and threat controls | Proposed |
-| [012](./ADR-012-ai-evaluation.md) | Pre-production and production AI evaluation | Proposed |
-| [013](./ADR-013-observability-and-causal-tracing.md) | Distributed AI observability and causal tracing | Proposed |
-| [014](./ADR-014-ai-finops-and-business-value.md) | AI FinOps, cost attribution, and business value | Proposed |
-| [015](./ADR-015-ai-marketplace.md) | Governed AI Marketplace and conversational discovery | Proposed |
-| [016](./ADR-016-microsoft-ecosystem-integration.md) | Microsoft ecosystem integration and Copilot Studio gateway boundary | Proposed |
-| [017](./ADR-017-rbac-and-auditor-role.md) | RBAC, scoped Auditor access, and Auditor Agent boundaries | Proposed |
-| [018](./ADR-018-production-deployment-and-iac.md) | Production-like deployment and infrastructure as code | Proposed |
+| [001](./ADR-001-enterprise-ai-platform-scope.md) | Enterprise AI platform scope and boundary | Accepted |
+| [002](./ADR-002-control-execution-planes.md) | Control Plane vs Execution Plane with shared capabilities | Accepted |
+| [003](./ADR-003-immutable-versioned-artifacts.md) | Immutable versioned artifacts and automated dependency graph | Accepted |
+| [004](./ADR-004-modular-microservice-ready-architecture.md) | Modular, microservice-ready architecture | Accepted |
+| [005](./ADR-005-polyglot-runtime-typescript-python.md) | Polyglot TypeScript/Node.js and Python runtime strategy | Accepted |
+| [006](./ADR-006-postgresql-pgvector.md) | PostgreSQL + pgvector as the platform data foundation | Accepted |
+| [007](./ADR-007-llm-gateway-model-routing.md) | Central LLM Gateway and policy-driven model routing | Accepted |
+| [008](./ADR-008-agent-runtime.md) | Explicit agent runtime separation and governed execution | Accepted |
+| [009](./ADR-009-rag-and-knowledge-versioning.md) | Governed RAG, provenance, and source versioning | Accepted |
+| [010](./ADR-010-immutable-versioned-policies.md) | Policies as immutable versioned governance artifacts | Accepted |
+| [011](./ADR-011-ai-security-architecture.md) | AI security architecture and threat controls | Accepted |
+| [012](./ADR-012-ai-evaluation.md) | Pre-production and production AI evaluation | Accepted |
+| [013](./ADR-013-observability-and-causal-tracing.md) | Distributed AI observability and causal tracing | Accepted |
+| [014](./ADR-014-ai-finops-and-business-value.md) | AI FinOps, cost attribution, and business value | Accepted |
+| [015](./ADR-015-ai-marketplace.md) | Governed AI Marketplace and conversational discovery | Accepted |
+| [016](./ADR-016-microsoft-ecosystem-integration.md) | Microsoft ecosystem integration and Copilot Studio gateway boundary | Accepted |
+| [017](./ADR-017-rbac-and-auditor-role.md) | RBAC, scoped Auditor access, and Auditor Agent boundaries | Accepted |
+| [018](./ADR-018-production-deployment-and-iac.md) | Production-like deployment and infrastructure as code | Accepted |
 
 ## Cross-ADR architectural themes
 
@@ -79,22 +83,12 @@ The ADR set should be read as a connected architecture rather than as isolated d
 
 ### Security, evaluation, observability, and FinOps
 
-- AI security includes ordinary platform threats plus AI-specific threats such as prompt injection, tool abuse, data leakage, excessive agency, and model/provider risks.
-- Tool authorization must preserve the causal chain when an Agent proposes a forbidden action.
-- Evaluation covers pre-production and production behavior with measurable metrics and evidence collection.
-- Observability uses distributed causal traces with spans/events/decisions for material actions within an AI request.
-- FinOps measures AI cost and business value, including time/productivity outcomes, rather than treating model cost as the only economic metric.
+- Security is defense-in-depth and treats model output, retrieved content, and tool proposals as untrusted until governed.
+- Evaluation is versioned and supports both pre-production release gates and production monitoring.
+- Observability is causal rather than limited to request-level logs.
+- FinOps attributes usage and cost while distinguishing measured, observed, and estimated business value.
 
-## Traceability
+### Deployment
 
-These decisions are grounded in the project preparation sources:
-
-- Stage 1 identifies enterprise AI platform architecture, LLM gateway/provider abstraction, model routing, agent lifecycle, governance, security, evaluation, observability, FinOps, PostgreSQL/pgvector, RAG, Terraform/IaC, and Azure/Microsoft ecosystem work as the relevant gap-closing areas.
-- Stage 2 positions AI Nexus as an organization-wide AI platform demonstrating technical platform capabilities plus the organizational model for governed AI adoption.
-- The current Ormat role emphasizes platform architecture/reliability/integration/observability, marketplace, FinOps, guardrails, evaluation, rollback, Microsoft 365/Copilot Studio/Power Platform, and enterprise-scale governance.
-
-These ADRs do not replace the Stage 3 Requirements & Architecture Specification. They establish the durable decisions that the specification and implementation must honor.
-
-## Next artifact
-
-After the ADR review is complete, the next authoritative design artifact is the **AI Nexus v1 Requirements & Architecture Specification**. It will translate these decisions into concrete requirements, component boundaries, interfaces, data models, security controls, deployment topology, MVP scope, and implementation sequencing.
+- v1 is production-like but intentionally avoids unnecessary microservice operational complexity.
+- Terraform/IaC, CI/CD, secure service communication, environment separation, health/readiness, secrets management, and immutable deployments are architectural requirements.
