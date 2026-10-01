@@ -43,9 +43,11 @@ The initial deployment topology may group several logical services into fewer de
 
 ## Data ownership
 
-Each logical service owns its domain data. Other services must not directly manipulate another service's domain tables.
+Each logical service owns its domain data. **No service may directly access or manipulate another service's domain-owned tables, regardless of whether the caller is implemented in TypeScript/Node.js, Python, or another language.**
 
-For v1, multiple logical services may use the same PostgreSQL instance and database, but logical ownership boundaries must remain explicit. The schema should be organized so that future physical database separation is possible without redesigning domain responsibilities.
+For v1, multiple logical services may use the same PostgreSQL instance and database for operational simplicity, but logical ownership boundaries must remain explicit. The schema should be organized so that future physical database separation is possible without redesigning domain responsibilities.
+
+Cross-domain access must occur through an explicit service/API contract or an approved asynchronous event/message contract. A shared database instance is therefore not a license for shared table ownership.
 
 ## Inter-service communication
 
