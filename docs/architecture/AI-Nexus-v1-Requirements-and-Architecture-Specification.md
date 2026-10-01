@@ -1,550 +1,364 @@
 # AI Nexus v1 — Requirements & Architecture Specification
 
 - **Status:** Draft — Stage 3B.1
-- **Version:** 0.1
-- **Date:** 2026-10-02
+- **Version:** 0.2
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 
-## 1. Document Purpose and Status
+## 1. Document Purpose
 
-This document translates the accepted AI Nexus ADRs into a concrete v1 requirements and architecture specification.
+This document defines the **v1 requirements and implementation-facing architecture specification** for AI Nexus.
 
-The ADRs are the authoritative architectural decisions. This specification does not reopen an accepted ADR unless an actual contradiction, missing requirement, or implementation ambiguity is discovered.
+It does **not** duplicate or supersede architectural decisions recorded in the ADRs. The ADRs are the authoritative source for architectural decisions. This document translates those decisions into concrete requirements, interfaces, boundaries, constraints, acceptance criteria, and implementation sequencing.
 
-Stage 3B is documentation-first. No production implementation should begin until the relevant requirements, boundaries, interfaces, acceptance criteria, and v1 scope are sufficiently defined.
+### 1.1 Architectural authority
 
-### 1.1 Working method
+The authoritative architectural decisions are maintained in the [ADR index](../adr/README.md) and ADR-001 through ADR-018.
+
+If an ADR changes, this specification must be reviewed for affected requirements, interfaces, constraints, and acceptance criteria. The ADR remains authoritative for the architectural decision itself.
+
+### 1.2 No duplicated architectural rationale
+
+The specification intentionally avoids restating ADR rationale or copying ADR decision text. Sections below use **Architectural basis: ADR-00X** references and define only the additional detail required to implement and validate v1.
+
+### 1.3 Working method
 
 ```text
-Inspect
-  ↓
-Compare with accepted ADRs
-  ↓
-Identify gaps / ambiguities
-  ↓
-Discuss / decide
-  ↓
-Update specification
-  ↓
-Commit
-  ↓
-Proceed to next specification section
+Inspect → Compare with accepted ADRs → Identify gaps / ambiguities → Discuss / decide → Update specification → Commit → Proceed
 ```
 
-### 1.2 Normative language
+### 1.4 Normative language
 
 - **MUST** — required for v1.
 - **SHOULD** — expected unless an explicit reason is documented.
 - **MAY** — optional capability.
 - **FUTURE** — intentionally outside v1 unless scope is later changed.
 
----
+## 2. System Goals
 
-# 2. System Goals
+The goals below define what the v1 specification must make implementable. Their architectural basis is the accepted ADR set.
 
-AI Nexus is an enterprise AI platform intended to enable organizations to build, govern, operate, evaluate, discover, and consume AI capabilities through a common platform rather than through disconnected AI applications.
+- **G-001:** Provide governed enterprise AI execution.
+  - **Architectural basis:** ADR-001, ADR-002, ADR-010, ADR-011, ADR-017.
+- **G-002:** Provide reusable AI platform capabilities.
+  - **Architectural basis:** ADR-001, ADR-004, ADR-007, ADR-008, ADR-009, ADR-015.
+- **G-003:** Provide versioned and reproducible AI systems.
+  - **Architectural basis:** ADR-003, ADR-009, ADR-010, ADR-012, ADR-013, ADR-014.
+- **G-004:** Enable safe enterprise AI adoption under common controls.
+  - **Architectural basis:** ADR-001, ADR-011, ADR-015, ADR-017.
+- **G-005:** Treat reliability, security, traceability, evaluation, cost, and business value as first-class concerns.
+  - **Architectural basis:** ADR-011 through ADR-014 and ADR-018.
+- **G-006:** Prevent direct application coupling to individual LLM providers.
+  - **Architectural basis:** ADR-007.
+- **G-007:** Demonstrate production-like engineering and reproducible delivery.
+  - **Architectural basis:** ADR-004, ADR-018.
 
-The system goals are derived from ADR-001 through ADR-018 and the Stage 1/Stage 2 preparation work.
+## 3. System Non-Goals
 
-## 2.1 Primary goals
+- **NG-001:** Implement every possible enterprise AI capability.
+- **NG-002:** Immediately deploy every logical service independently.
+  - **Architectural basis:** ADR-004, ADR-018.
+- **NG-003:** Replace Microsoft tenant/organizational governance.
+  - **Architectural basis:** ADR-016.
+- **NG-004:** Allow an LLM, Agent, planner, or discovery mechanism to become an authorization authority.
+  - **Architectural basis:** ADR-008, ADR-010, ADR-017.
+- **NG-005:** Build a public commercial AI marketplace.
+  - **Architectural basis:** ADR-015.
+- **NG-006:** Make public exposure the sole objective of deployment.
+  - **Architectural basis:** ADR-018.
 
-### G-001 — Governed enterprise AI execution
-
-Provide a common execution path in which AI requests, model calls, retrieval, tool usage, and Agent actions are subject to identity, authorization, policy, security, observability, and audit controls.
-
-### G-002 — Reusable AI platform capabilities
-
-Provide reusable platform capabilities for:
-
-- LLM access
-- model routing
-- Agent execution
-- RAG
-- tools/MCP
-- evaluation
-- governance
-- observability
-- FinOps
-- marketplace discovery
-
-### G-003 — Versioned and reproducible AI systems
-
-Make material AI artifacts immutable and versioned, maintain automatically derived dependencies, and preserve enough execution context to reconstruct which versions influenced an execution.
-
-### G-004 — Safe enterprise adoption
-
-Allow different enterprise personas and business units to consume AI capabilities without each team independently implementing authorization, security, evaluation, observability, and cost controls.
-
-### G-005 — Operationally credible AI
-
-Treat reliability, security, safety, traceability, cost, and business value as first-class concerns rather than optimizing only for model capability.
-
-### G-006 — Model/provider abstraction
-
-Prevent applications and Agents from becoming tightly coupled to individual model providers. Model access is mediated through the LLM Gateway and Model Router.
-
-### G-007 — Enterprise AI enablement
-
-Provide the platform and standards that allow multiple teams to create and consume AI capabilities consistently.
-
-### G-008 — Production-like engineering demonstration
-
-The v1 platform should demonstrate production-oriented engineering practices including secure deployment, IaC, CI/CD, health/readiness, observability, dependency validation, and controlled release.
-
----
-
-# 3. System Non-Goals
-
-The following are intentionally outside the v1 objective unless a later accepted decision changes the scope.
-
-## 3.1 Non-goals
-
-### NG-001 — Building every possible enterprise AI capability
-
-AI Nexus is not intended to implement every possible AI use case or domain-specific Agent.
-
-### NG-002 — Immediate full microservice decomposition
-
-Logical service boundaries MUST exist, but v1 does not require every logical service to be deployed independently. Deployment grouping is an operational decision consistent with ADR-004 and ADR-018.
-
-### NG-003 — Replacing Microsoft tenant governance
-
-AI Nexus integration with Copilot Studio does not by itself establish organization-wide Microsoft tenant enforcement. Organization-wide enforcement remains dependent on Microsoft organizational/tenant controls.
-
-### NG-004 — Autonomous authorization by an LLM
-
-Models, Agents, planners, and conversational discovery MUST NOT become authorization authorities.
-
-### NG-005 — Fixed AI cost guarantees
-
-The Marketplace and runtime MUST NOT represent dynamic AI execution cost as a guaranteed fixed price per request.
-
-### NG-006 — Embeddings as the source of truth
-
-Vector embeddings are derived knowledge representations. The authoritative knowledge lineage remains the source/document/chunk version model.
-
-### NG-007 — Public AI marketplace
-
-The v1 Marketplace is an internal governed enterprise capability, not a public commercial marketplace.
-
-### NG-008 — Provider-specific application architecture
-
-Individual applications should not require direct provider-specific LLM integration when the governed platform path is available.
-
-### NG-009 — Full enterprise-scale operational complexity on day one
-
-The platform should be production-like without introducing unnecessary infrastructure complexity before there is a concrete operational requirement.
-
----
-
-# 4. Personas and Primary Use Cases
-
-AI Nexus is an enterprise platform and therefore has multiple user and workload personas.
-
-## 4.1 Personas
+## 4. Personas and Primary Use Cases
 
 | Persona | Primary need |
 |---|---|
-| Executive | Trusted business-level visibility and AI value insight |
-| Business leader / manager | Governed AI capabilities for decision support and workflow improvement |
-| Business user | Discover and use approved AI capabilities |
-| Developer / application engineer | Build applications and Agents using platform capabilities |
-| AI / ML engineer | Build, evaluate, and operate AI systems |
-| Data scientist | Evaluation, experimentation, knowledge and model analysis |
-| Platform engineer | Operate platform services, deployment, reliability and integrations |
-| Security / governance | Policy, risk, security controls, audit and compliance visibility |
-| Auditor | Read-oriented investigation and evidence access within scope |
-| AI Nexus service identity | Machine-to-machine governed execution |
-| External integration | Controlled access through the API/Edge boundary |
+| Executive | AI usage and business-value visibility |
+| Business leader / manager | Governed AI capabilities for workflows and decisions |
+| Business user | Discover and consume approved AI capabilities |
+| Developer / application engineer | Integrate applications with AI Nexus |
+| AI / ML engineer | Build and evaluate AI capabilities |
+| Data scientist | Evaluation, experimentation, and analysis |
+| Platform engineer | Operate services and deployments |
+| Security / governance | Policy, security, risk, and audit visibility |
+| Auditor | Scoped read-only investigation |
+| AI Nexus service identity | Governed machine-to-machine execution |
+| External integration | Controlled access through the Edge boundary |
 
-These personas align with the organization-wide AI service model established in the Stage 2 positioning work and ADR-015.
+Primary use cases: capability discovery, governed Agent execution and registration, governed RAG, governed tool/MCP actions, LLM routing, evaluation, causal investigation, FinOps/value analysis, and Copilot Studio integration.
+
+**Architectural basis:** ADR-001 through ADR-018 as applicable.
+
+## 5. Functional Requirements
+
+Each requirement must have a stable ID, normative statement, architectural basis where applicable, owning component/boundary, and acceptance criteria. Requirements must not duplicate ADR decisions.
 
-## 4.2 Primary use cases
+### 5.1 Identity and authorization
+
+- **FR-IAM-001:** Protected operations MUST authenticate the calling user or service identity.
+- **FR-IAM-002:** Authorization MUST be enforceable at runtime, not only at ingress.
+- **FR-IAM-003:** v1 authorization MUST support role permissions plus applicable resource/context constraints.
+- **FR-IAM-004:** Auditor operations MUST be explicitly read-oriented.
+- **Basis:** ADR-010, ADR-011, ADR-017.
 
-### UC-001 — Discover an approved AI capability
+### 5.2 Artifact lifecycle
+
+- **FR-ART-001:** The artifact model MUST represent immutable versions and identifiers.
+- **FR-ART-002:** The dependency model MUST represent relationships between versioned artifacts.
+- **FR-ART-003:** Dependency information MUST be exposed to CI/release validation.
+- **FR-ART-004:** Historical executions MUST retain relevant artifact version references.
+- **Basis:** ADR-003.
 
-A business user describes a task or searches the Marketplace, receives governed candidate capabilities, reviews trust/evaluation information, and selects a capability they are authorized to use.
+### 5.3 Agent management
 
-### UC-002 — Execute an Agent
+- **FR-AGT-001:** v1 MUST provide an Agent registry contract.
+- **FR-AGT-002:** Agent versions MUST be immutable artifacts.
+- **FR-AGT-003:** Agent registration MUST capture ownership, capabilities, dependencies, policies, deployment state, and evaluation state.
+- **Basis:** ADR-003, ADR-008, ADR-010, ADR-012.
+
+### 5.4 LLM Gateway / Model Router
 
-An authorized user or application invokes a registered Agent through the controlled API/Edge boundary. The execution is resolved against applicable identity, RBAC, policy, model, RAG, and tool constraints.
+- **FR-LLM-001:** Runtime LLM requests MUST use the LLM Gateway contract.
+- **FR-LLM-002:** Provider calls MUST be isolated behind provider adapters.
+- **FR-LLM-003:** Routing MUST represent hard constraints separately from optimization signals.
+- **FR-LLM-004:** Routing responses MUST identify the selected model/provider and decision context needed for observability.
+- **FR-LLM-005:** Available provider usage information MUST be captured for observability and FinOps.
+- **Basis:** ADR-007.
 
-### UC-003 — Build and register an Agent
+### 5.5 Agent execution
 
-An authorized developer creates a versioned Agent artifact, declares its dependencies and capabilities, evaluates it, and registers it for governed lifecycle management.
+- **FR-EXEC-001:** Agent Runtime MUST delegate model, retrieval, and tool responsibilities to their defined runtime capabilities.
+- **FR-EXEC-002:** Runtime state MUST have a correlation/execution identifier.
+- **FR-EXEC-003:** Model-generated actions MUST enter the governed tool/action path before execution.
+- **FR-EXEC-004:** Runtime state MUST distinguish planning, model execution, retrieval, tool proposal, authorization/approval, execution, and completion/failure.
+- **Basis:** ADR-008, ADR-013.
 
-### UC-004 — Execute governed RAG
+### 5.6 RAG / knowledge
 
-An Agent or application retrieves enterprise knowledge through the RAG Runtime. Retrieval respects authorization and preserves document/chunk/embedding provenance.
+- **FR-RAG-001:** v1 knowledge MUST represent source/document/chunk lineage.
+- **FR-RAG-002:** Embeddings MUST reference source/chunk and embedding configuration/version.
+- **FR-RAG-003:** Retrieval requests MUST carry sufficient authorization context.
+- **FR-RAG-004:** Retrieval responses MUST expose provenance identifiers.
+- **Basis:** ADR-006, ADR-009, ADR-011.
 
-### UC-005 — Execute a governed tool/MCP action
+### 5.7 Tools / MCP
 
-An Agent proposes a tool action. The platform evaluates authorization and policy requirements before execution. Approval may be required for applicable actions.
+- **FR-TOOL-001:** Tool registration MUST represent ownership, identity, capabilities, and authorization requirements.
+- **FR-TOOL-002:** Tool execution MUST require an explicit authorization/policy decision.
+- **FR-TOOL-003:** Tool credentials MUST be delivered through controlled runtime mechanisms, not model context.
+- **FR-TOOL-004:** Tool proposals and executions MUST be represented in the causal trace.
+- **Basis:** ADR-008, ADR-011, ADR-013.
 
-### UC-006 — Route an LLM request
+### 5.8 Policies / governance
 
-A runtime request reaches the LLM Gateway. Hard constraints are applied first; the Model Router selects an eligible model/provider based on policy, capability, quality, cost, latency, availability, and other configured routing signals.
+- **FR-POL-001:** The policy model MUST reference immutable policy versions.
+- **FR-POL-002:** Runtime decisions MUST preserve policy version references.
+- **FR-POL-003:** Authorization responses MUST expose decision outcome and sufficient non-sensitive context for audit/observability.
+- **Basis:** ADR-010, ADR-011, ADR-017.
 
-### UC-007 — Evaluate an AI capability
+### 5.9 Evaluation
 
-A versioned Agent/model/prompt/RAG/tool configuration is evaluated using versioned datasets and evaluators. Results can act as release gates and production monitoring signals.
+- **FR-EVAL-001:** Evaluation configurations MUST reference versioned inputs.
+- **FR-EVAL-002:** v1 MUST support evaluation as a release-gate input.
+- **FR-EVAL-003:** v1 MUST support production evaluation/monitoring records.
+- **FR-EVAL-004:** Results MUST identify evaluated artifact/model/configuration versions.
+- **FR-EVAL-005:** Results MUST preserve evaluator and dataset versions.
+- **Basis:** ADR-012.
 
-### UC-008 — Investigate an AI execution
+### 5.10 Observability / audit
 
-An operator, security user, or Auditor follows a causal execution trace from request through policy decisions, model calls, retrieval, tool proposals, approvals, and external actions.
+- **FR-OBS-001:** Each governed execution MUST have a correlation identifier.
+- **FR-OBS-002:** Correlation context MUST propagate across logical service boundaries.
+- **FR-OBS-003:** Material authorization, model, retrieval, tool, approval, and execution events MUST be causally related.
+- **FR-OBS-004:** Trace records MUST retain relevant artifact/policy references.
+- **Basis:** ADR-013, with ADR-003 and ADR-010 references.
 
-### UC-009 — Analyze AI economics
+### 5.11 FinOps / business value
 
-A business or platform user analyzes AI usage and cost by provider, model, Agent, application, workflow, team, business unit, or tenant, and compares cost with available business-value evidence.
+- **FR-FIN-001:** v1 MUST represent usage dimensions needed for cost attribution.
+- **FR-FIN-002:** Pricing configuration MUST be versioned for historical calculations.
+- **FR-FIN-003:** Cost records MUST support the execution attribution dimensions defined by the data model.
+- **FR-FIN-004:** Business-value records MUST distinguish measured, observed, and estimated evidence.
+- **Basis:** ADR-014.
 
-### UC-010 — Integrate Copilot Studio
+### 5.12 Marketplace
 
-A Copilot Studio capability reaches AI Nexus through the controlled Microsoft integration boundary and is subject to AI Nexus authentication, authorization, policy, observability, and execution controls.
+- **FR-MKT-001:** v1 MUST expose governed discovery of registered AI capabilities.
+- **FR-MKT-002:** Discovery MUST respect visibility/access rules.
+- **FR-MKT-003:** Discovery recommendations MUST NOT grant authorization.
+- **FR-MKT-004:** Marketplace invocation MUST enter the governed execution path.
+- **Basis:** ADR-015, ADR-017.
 
----
+### 5.13 Microsoft / Copilot Studio
 
-# 5. Functional Requirements
+- **FR-MS-001:** Copilot Studio integration MUST enter through the external API/Edge boundary.
+- **FR-MS-002:** Internal runtime services MUST not be direct external integration targets.
+- **FR-MS-003:** Microsoft authentication context MUST be mapped into an AI Nexus authorization decision.
+- **FR-MS-004:** v1 documentation MUST distinguish AI Nexus enforcement from Microsoft tenant/organizational enforcement.
+- **Basis:** ADR-016.
 
-Functional requirements will be expanded incrementally in subsequent Stage 3B iterations. The following baseline requirements establish the minimum v1 capability model.
+### 5.14 Deployment / lifecycle
 
-## 5.1 Identity and access
+- **FR-DEP-001:** v1 MUST support environment separation appropriate to the selected topology.
+- **FR-DEP-002:** Deployment artifacts MUST be identifiable by immutable versions.
+- **FR-DEP-003:** Runtime services MUST expose appropriate health/readiness behavior.
+- **FR-DEP-004:** Required infrastructure MUST be reproducible through Terraform/IaC.
+- **FR-DEP-005:** CI/CD MUST implement the release gates defined in this specification.
+- **Basis:** ADR-018, with ADR-003 and ADR-012 dependencies.
 
-**FR-IAM-001** — The platform MUST authenticate users and service identities before protected operations.
+## 6. Initial Non-Functional Requirements
 
-**FR-IAM-002** — The platform MUST apply RBAC as the baseline authorization model.
+Detailed numeric SLOs, capacity targets, retention periods, and performance budgets remain to be established after runtime and deployment assumptions are defined.
 
-**FR-IAM-003** — Authorization MUST support policy constraints beyond role membership, including applicable tenant, resource, data classification, environment, and workload constraints.
+- **NFR-SEC-001:** Security controls MUST follow the threat model derived from ADR-011.
+- **NFR-TRC-001:** Material runtime decisions MUST remain attributable to artifact and policy versions.
+- **NFR-REL-001:** Provider, retrieval, tool, and integration failures MUST be controlled and observable.
+- **NFR-PERF-001:** Platform overhead from governance/routing/authorization/observability MUST be measurable independently from model latency.
+- **NFR-SCALE-001:** Logical boundaries MUST permit future independent scaling or extraction.
+- **NFR-DEP-001:** Production-like deployment MUST be reproducible from version-controlled infrastructure.
 
-**FR-IAM-004** — Authorization decisions MUST be enforceable during execution and MUST NOT rely solely on an initial ingress check.
+**Basis:** ADR-003, ADR-004, ADR-011, ADR-013, ADR-018.
 
-**FR-IAM-005** — Auditor access MUST remain read-oriented and scoped.
+## 7. Architecture Specification — Work Products To Define Next
 
-## 5.2 Artifact lifecycle
+These sections are intentionally **work products**, not duplicated ADR content. They will specify implementation-level detail derived from the accepted decisions.
 
-**FR-ART-001** — Material AI artifacts MUST have immutable versions.
+### 7.1 Enterprise architecture
+Define system context, external actors/integrations, trust boundaries, major capabilities, request/execution flows, and ownership boundaries.
 
-**FR-ART-002** — Material dependencies MUST be representable in the dependency graph.
+**Basis:** ADR-001, ADR-002, ADR-004.
 
-**FR-ART-003** — Dependency relationships SHOULD be derived automatically from declared/observable artifact metadata rather than manually maintained as the primary source.
+### 7.2 Control Plane / Execution Plane / Shared Capabilities
+Define exact v1 modules, dependency directions, APIs, runtime authorization points, shared capability ownership, and forbidden bypass paths.
 
-**FR-ART-004** — The platform MUST be able to identify affected downstream artifacts when a versioned dependency changes.
+**Basis:** ADR-002.
 
-**FR-ART-005** — Historical executions MUST retain relevant artifact version references.
+### 7.3 Service/module boundaries
+For each logical service/module define responsibility, owned data, public interface, communication mode, dependencies, Node/Python allocation, v1 deployment grouping, and future extraction boundary.
 
-## 5.3 Agent management
+**Basis:** ADR-004, ADR-005.
 
-**FR-AGT-001** — The platform MUST provide an Agent registry.
+### 7.4 Artifact/dependency model
+Define artifact types, version identifier format, dependency declarations, graph representation, change-impact calculation, CI behavior, and release-gate inputs.
 
-**FR-AGT-002** — Agents MUST be versioned artifacts.
+**Basis:** ADR-003.
 
-**FR-AGT-003** — Agent registration MUST capture applicable ownership, lifecycle, capabilities, risk/data classification, policy, tool, model, knowledge, evaluation, and deployment metadata.
+### 7.5 Data architecture
+Define PostgreSQL schemas, entity ownership, version/dependency/execution/policy/evaluation/cost records, knowledge lineage, and pgvector indexes/retrieval interfaces.
 
-**FR-AGT-004** — Only registered and governed Agents may be exposed through the governed Marketplace/runtime path.
+**Basis:** ADR-006, ADR-009, ADR-014.
 
-## 5.4 LLM access and routing
+### 7.6 LLM Gateway / Model Router
+Define request/response contracts, provider adapter interface, routing context, hard-constraint evaluation, optimization inputs, fallback behavior, timeout/retry policy, and usage/cost events.
 
-**FR-LLM-001** — Runtime LLM access MUST pass through the LLM Gateway.
+**Basis:** ADR-007.
 
-**FR-LLM-002** — Provider-specific integration MUST be encapsulated by provider adapters.
+### 7.7 Runtime architecture
+Define Agent Runtime state machine, RAG Runtime interface, Tool/MCP Runtime interface, authorization/approval checkpoints, correlation, and failure/retry semantics.
 
-**FR-LLM-003** — The Model Router MUST apply hard constraints before optimization.
+**Basis:** ADR-008, ADR-009, ADR-013.
 
-**FR-LLM-004** — Routing MAY consider capability, quality, cost, latency, availability, and other approved signals after hard constraints are satisfied.
+### 7.8 Governance/security
+Define authentication flows, authorization API, policy evaluation sequence, threat/control matrix, trust boundaries, secret handling, classification enforcement, and audit evidence.
 
-**FR-LLM-005** — Runtime telemetry MUST capture provider/model usage metadata sufficient for observability and FinOps where supplied by the provider.
+**Basis:** ADR-010, ADR-011, ADR-017.
 
-## 5.5 Agent execution
+### 7.9 Evaluation
+Define v1 datasets, evaluator interfaces, metrics, thresholds, release-gate behavior, and production monitoring.
 
-**FR-EXEC-001** — Agent execution MUST be separated from LLM access, RAG, and tool execution responsibilities.
+**Basis:** ADR-012.
 
-**FR-EXEC-002** — LLM-generated actions MUST be treated as proposals and MUST NOT directly authorize execution.
+### 7.10 Causal observability
+Define trace/span/event model, causal relationships, correlation identifiers, artifact/policy references, redaction, retention, and operator/auditor views.
 
-**FR-EXEC-003** — Agent execution MUST preserve execution identity and causal correlation.
+**Basis:** ADR-013.
 
-**FR-EXEC-004** — Agent execution MUST enforce applicable policy and authorization controls at the relevant action boundaries.
+### 7.11 AI FinOps / business value
+Define usage events, pricing representation, cost attribution dimensions, anomaly detection, business-value evidence, and measured/observed/estimated classification.
 
-## 5.6 RAG and knowledge
+**Basis:** ADR-014.
 
-**FR-RAG-001** — The platform MUST maintain source/document/chunk version lineage for governed knowledge.
+### 7.12 AI Marketplace
+Define capability publication lifecycle, discovery API, trust metadata, access request flow, approval integration, and invocation handoff.
 
-**FR-RAG-002** — Embeddings MUST be associated with the source/chunk and embedding configuration/version that produced them.
+**Basis:** ADR-015.
 
-**FR-RAG-003** — Retrieval MUST apply applicable authorization/data-access controls.
+### 7.13 MCP / Tool integration
+Define registration, capability schema, identity, authorization, credential delivery, and execution/audit contracts.
 
-**FR-RAG-004** — Retrieval results MUST preserve provenance references sufficient to identify the relevant source/document version.
+**Basis:** ADR-008, ADR-011, ADR-013.
 
-## 5.7 Tools and MCP
+### 7.14 Copilot Studio integration
+Define external API contract, authentication, authorization mapping, connector payloads, error semantics, and tenant enforcement boundary.
 
-**FR-TOOL-001** — Tools/MCP capabilities MUST have governed registration and identity.
+**Basis:** ADR-016.
 
-**FR-TOOL-002** — Tool proposals MUST be subject to authorization/policy evaluation before execution.
+### 7.15 Node.js / Python allocation
+Define exact v1 allocation of logical capabilities between Node.js/TypeScript and Python while preserving ADR-005 boundaries.
 
-**FR-TOOL-003** — Tool credentials MUST remain outside model context and be supplied through controlled runtime mechanisms.
+**Basis:** ADR-005.
 
-**FR-TOOL-004** — Tool executions MUST be represented in the causal execution trace.
+### 7.16 CI/CD and release gates
+Define dependency validation, artifact/version validation, security gates, evaluation gates, infrastructure validation, promotion criteria, and rollback criteria.
 
-## 5.8 Governance and policy
+**Basis:** ADR-003, ADR-012, ADR-018.
 
-**FR-POL-001** — Policies MUST be immutable, versioned governance artifacts.
+### 7.17 Terraform / IaC
+Define managed resources, environments, state boundaries, secrets integration, network/security resources, database/vector infrastructure, and deployment resources.
 
-**FR-POL-002** — Runtime authorization MUST evaluate applicable policy versions.
+**Basis:** ADR-018.
 
-**FR-POL-003** — Material policy decisions MUST be traceable to the relevant policy version and decision context.
+### 7.18 Deployment topology
+Define v1 deployment units, network boundaries, ingress/edge, databases, workers, observability infrastructure, environment separation, and scaling boundaries.
 
-**FR-POL-004** — Effective runtime constraints MUST be derived from the applicable combination of identity, RBAC, policy, data, security, tool, and workload constraints.
+**Basis:** ADR-004, ADR-018.
 
-## 5.9 Evaluation
+## 8. MVP / v1 Scope vs Future Enterprise Capabilities
 
-**FR-EVAL-001** — Evaluation configurations MUST be version-aware.
+This section will be finalized after service/data/runtime architecture is defined. v1 must demonstrate the complete governed AI platform path without implementing every enterprise-scale feature. A future capability must not silently become a v1 requirement.
 
-**FR-EVAL-002** — Evaluation MUST support pre-production release decisions.
+## 9. Production / Demo Hosting Strategy
 
-**FR-EVAL-003** — Evaluation MUST support production monitoring.
+The hosting strategy must demonstrate production-like engineering without unjustified infrastructure complexity. Provider, resources, environments, and exposure model will be defined after deployment topology and IaC requirements.
 
-**FR-EVAL-004** — Evaluation results MUST preserve the versions of material inputs used for evaluation.
+**Basis:** ADR-018.
 
-**FR-EVAL-005** — Deterministic metrics SHOULD be preferred where sufficient; LLM-as-judge MAY be used where semantic evaluation is required.
+## 10. Implementation Phases
 
-## 5.10 Observability and audit
+1. Requirements foundation
+2. Enterprise architecture and boundaries
+3. Data and artifact model
+4. LLM Gateway / Model Router contracts
+5. Agent / RAG / Tool runtime contracts
+6. Governance and security contracts
+7. Evaluation / observability / FinOps
+8. Marketplace / MCP / Microsoft integration
+9. CI/CD / Terraform / deployment topology
+10. MVP implementation and acceptance validation
 
-**FR-OBS-001** — Each AI request MUST have a causal execution trace.
+Implementation must not begin until the relevant Stage 3B sections are sufficiently defined.
 
-**FR-OBS-002** — Trace context MUST propagate across logical service boundaries.
+## 11. Acceptance Criteria Model
 
-**FR-OBS-003** — Material spans, events, and decisions MUST preserve causal relationships.
+Every major v1 capability must have behavioral acceptance criteria covering applicable happy paths, authorization/policy denial, invalid artifact versions, dependency impact, provider failure, retrieval authorization, tool authorization/approval, evaluation failure, causal trace completeness, cost attribution, audit boundaries, and deployment/readiness behavior.
 
-**FR-OBS-004** — Traces MUST retain relevant artifact and policy versions.
+## 12. Traceability Matrix
 
-**FR-OBS-005** — Observability data MUST support policy-controlled redaction and retention.
-
-## 5.11 FinOps and business value
-
-**FR-FIN-001** — The platform MUST collect or consume model usage metadata sufficient for cost accounting where available.
-
-**FR-FIN-002** — Pricing configurations MUST be versioned.
-
-**FR-FIN-003** — Cost MUST be attributable across applicable organizational and execution dimensions.
-
-**FR-FIN-004** — The platform MUST distinguish AI platform cost, workflow operational cost, and business value.
-
-**FR-FIN-005** — Business-value evidence MUST distinguish measured, observed, and estimated values.
-
-## 5.12 Marketplace
-
-**FR-MKT-001** — The platform MUST provide governed discovery of registered AI capabilities.
-
-**FR-MKT-002** — Marketplace visibility MUST respect discovery permissions.
-
-**FR-MKT-003** — Conversational discovery MAY recommend capabilities but MUST NOT grant access.
-
-**FR-MKT-004** — Marketplace access MUST flow through the governed authorization/execution path.
-
-**FR-MKT-005** — Marketplace records MUST remain version-aware.
-
-## 5.13 Microsoft / Copilot Studio
-
-**FR-MS-001** — Copilot Studio integration MUST enter through the defined external API/Edge boundary.
-
-**FR-MS-002** — Copilot Studio integration MUST NOT directly bypass internal runtime services.
-
-**FR-MS-003** — Microsoft authentication MUST NOT be treated as a substitute for AI Nexus authorization.
-
-**FR-MS-004** — Organization-wide Microsoft enforcement claims MUST distinguish AI Nexus controls from Microsoft tenant/organizational controls.
-
-## 5.14 Deployment and lifecycle
-
-**FR-DEP-001** — v1 MUST support environment separation.
-
-**FR-DEP-002** — Deployment artifacts MUST be immutable/versioned.
-
-**FR-DEP-003** — Services MUST expose health/readiness information appropriate to their deployment model.
-
-**FR-DEP-004** — Infrastructure MUST be reproducible through Terraform/IaC.
-
-**FR-DEP-005** — CI/CD MUST enforce defined dependency, evaluation, security, and release gates before production-like deployment.
-
----
-
-# 6. Non-Functional Requirements — Initial Baseline
-
-Detailed measurable SLOs, capacity targets, and retention values will be defined in the architecture phase after the runtime and deployment topology are specified.
-
-## 6.1 Security
-
-**NFR-SEC-001** — The platform MUST use defense-in-depth security controls.
-
-**NFR-SEC-002** — Model output, retrieved content, and tool proposals MUST be treated as untrusted inputs until governed.
-
-**NFR-SEC-003** — Secrets MUST NOT be placed into model context as a general credential-delivery mechanism.
-
-**NFR-SEC-004** — Sensitive observability payloads MUST be subject to classification, redaction, access, and retention controls.
-
-## 6.2 Traceability and reproducibility
-
-**NFR-TRC-001** — Material runtime decisions MUST be attributable to artifact and policy versions.
-
-**NFR-TRC-002** — Historical executions MUST remain interpretable after later artifact versions are released.
-
-**NFR-TRC-003** — Cost calculations MUST preserve the pricing version used.
-
-## 6.3 Reliability
-
-**NFR-REL-001** — Runtime services MUST fail in controlled ways when dependent model providers, tools, retrieval systems, or integrations are unavailable.
-
-**NFR-REL-002** — Health/readiness behavior MUST distinguish an unavailable dependency from a process that is not ready to receive traffic.
-
-**NFR-REL-003** — Retries MUST be bounded and observable.
-
-## 6.4 Performance
-
-**NFR-PERF-001** — Platform overhead introduced by governance, routing, observability, and policy enforcement SHOULD be measurable independently from provider/model latency.
-
-**NFR-PERF-002** — Retrieval and authorization filtering SHOULD be designed so that governance does not require unrestricted post-retrieval filtering of large result sets as the normal path.
-
-## 6.5 Scalability
-
-**NFR-SCALE-001** — Logical service boundaries MUST permit future independent scaling.
-
-**NFR-SCALE-002** — v1 deployment grouping MUST NOT create architectural dependencies that prevent later extraction of logical services.
-
-## 6.6 Maintainability
-
-**NFR-MAINT-001** — Service/module contracts MUST be explicit.
-
-**NFR-MAINT-002** — Domain ownership MUST prevent direct cross-service database ownership violations.
-
-**NFR-MAINT-003** — TypeScript/Node.js and Python components MUST communicate through defined service/worker contracts rather than language-specific internal coupling.
-
-## 6.7 Auditability
-
-**NFR-AUD-001** — Material authorization, policy, model-routing, evaluation, tool, and deployment decisions MUST be auditable.
-
-**NFR-AUD-002** — Auditor access MUST not provide write/remediation authority by default.
-
----
-
-# 7. v1 Scope Boundary — Initial Proposal
-
-This section is intentionally a proposal for discussion, not yet the final implementation scope.
-
-## 7.1 v1 must demonstrate
-
-1. Governed API/Edge entry.
-2. Identity + RBAC + policy enforcement.
-3. Versioned Agent registry.
-4. LLM Gateway with at least two provider adapters where practical.
-5. Policy-constrained Model Router.
-6. Agent Runtime.
-7. RAG Runtime using PostgreSQL + pgvector.
-8. Governed Tool/MCP Runtime.
-9. Immutable policy versions.
-10. Evaluation workflow and release gate.
-11. Causal observability.
-12. Cost attribution and basic FinOps.
-13. Governed internal Marketplace.
-14. Copilot Studio integration boundary/design.
-15. TypeScript/Python service allocation with secure service communication.
-16. CI/CD dependency and release gates.
-17. Terraform/IaC.
-18. Production-like deployment.
-
-## 7.2 v1 should demonstrate through one coherent end-to-end scenario
-
-The platform should not be presented as a collection of disconnected demos. At least one end-to-end workflow should exercise the architecture:
-
-```text
-User / external client
-        ↓
-API / Edge Boundary
-        ↓
-Authentication
-        ↓
-RBAC + Policy
-        ↓
-Agent resolution
-        ↓
-Agent Runtime
-   ┌────┼─────────────┐
-   ↓    ↓             ↓
- LLM  RAG         Tool/MCP
-   ↓    ↓             ↓
-   └────┼─────────────┘
-        ↓
-Response validation
-        ↓
-Causal trace
-        ↓
-Evaluation / FinOps / Audit evidence
-```
-
-## 7.3 Explicitly deferred from the first implementation slice
-
-The following should remain candidates for later phases unless required to prove the architecture:
-
-- broad multi-tenant enterprise scale
-- large Agent catalog
-- advanced autonomous remediation
-- full enterprise identity-provider matrix
-- extensive provider portfolio
-- complex cross-region deployment
-- full enterprise disaster-recovery topology
-- advanced business-value causal inference
-- large-scale marketplace ecosystem
-
-These are scope candidates, not rejected architectural capabilities.
-
----
-
-# 8. Open Decisions for Stage 3B.2
-
-The following questions are intentionally left open until the architecture sections are developed and reviewed.
-
-1. Exact v1 logical service/module decomposition.
-2. Exact PostgreSQL domain schema and ownership boundaries.
-3. Exact artifact taxonomy and dependency-edge types.
-4. Exact Agent Runtime state machine.
-5. Exact LLM Gateway request/response contract.
-6. Exact Model Router input/output contract and routing policy representation.
-7. Exact RAG ingestion/retrieval contract.
-8. Exact Tool/MCP registration and execution contract.
-9. Exact policy evaluation order and conflict-resolution semantics.
-10. Exact evaluation metric catalog and v1 release thresholds.
-11. Exact causal telemetry schema and retention tiers.
-12. Exact FinOps formulas and pricing schema.
-13. Exact Marketplace lifecycle/state machine.
-14. Exact Copilot Studio API/connector contract.
-15. Exact Node.js/Python deployment boundaries.
-16. Exact service-to-service authentication and authorization mechanism.
-17. Exact CI/CD release gates.
-18. Exact Terraform resource topology.
-19. Exact v1 deployment topology and hosting provider/environment model.
-20. Exact measurable performance, reliability, availability, and capacity targets.
-
-These are specification questions, not reopened ADR decisions.
-
----
-
-# 9. Traceability Rule
-
-Every final v1 requirement SHOULD be traceable to one or more of:
-
-- an accepted ADR;
-- a Stage 1 identified gap;
-- a Stage 2 positioning objective;
-- a concrete v1 operational/business requirement discovered during specification.
-
-The final specification will maintain a traceability matrix of:
+The final specification must maintain:
 
 ```text
 Requirement
     ↓
-ADR / source rationale
+Accepted ADR
     ↓
-Logical component
+Logical component / interface
     ↓
-Interface / data contract
+Implementation
     ↓
-Test or acceptance criterion
+Test / acceptance criterion
 ```
 
-This document is currently at **Stage 3B.1**. Sections 1–7 establish the initial requirements baseline; the remaining architecture sections will be added incrementally after review of this baseline.
+The matrix must identify affected requirements when an ADR changes. This is the mechanism that keeps the specification maintainable without duplicating architectural decisions.
+
+## 13. Stage 3B Status
+
+**Current status:** Draft — Stage 3B.1 foundation.
+
+Next: define the enterprise architecture, Control Plane / Execution Plane boundaries, logical service/module boundaries, artifact/dependency model, and Node.js/Python allocation using the accepted ADRs as references rather than duplicated content.
