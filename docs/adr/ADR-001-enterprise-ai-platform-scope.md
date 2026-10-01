@@ -5,9 +5,14 @@
 
 ## Context
 
-Stage 1 identified enterprise AI platform architecture as a core interview requirement and identified gaps to deepen in governance, security, evaluation, observability, FinOps, PostgreSQL/pgvector, RAG, and Microsoft ecosystem integration. Stage 2 positions AI Nexus as evidence of how to build an internal AI platform for an entire enterprise rather than a single AI application.
+Stage 1 identified enterprise AI platform architecture as a core interview requirement and identified gaps to deepen in governance, security, evaluation, observability, FinOps, PostgreSQL/pgvector, RAG, and Microsoft/Azure ecosystem integration. Stage 2 positions AI Nexus as evidence of how to build an internal AI platform for an entire enterprise rather than a single AI application.
 
 The target is therefore not a generic chatbot or isolated RAG demo. The platform must demonstrate reusable, governed AI capabilities for multiple builders, business users, and organizational functions.
+
+The platform serves two broad audiences:
+
+- **Platform builders:** people who create and manage agents, tools, policies, models, evaluations, knowledge sources, and other governed AI artifacts.
+- **Enterprise consumers:** people who discover and use approved AI capabilities, request access where required, and consume them through approved enterprise workflows and integrations.
 
 ## Decision
 
@@ -25,7 +30,7 @@ The platform boundary includes:
 - observability and auditability
 - AI FinOps and business-value measurement
 - internal AI Marketplace and discovery
-- Microsoft ecosystem integration
+- Azure / Microsoft ecosystem integration
 
 AI Nexus is a **platform**, not the system of record for every enterprise business process. Business systems remain external systems accessed through governed integrations/tools.
 
