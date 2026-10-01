@@ -35,6 +35,29 @@ The registry may contain distinct policy artifact types, including:
 - rate-limit policy
 - retention policy
 
+### Effective policy composition
+
+A runtime decision may be governed by multiple applicable policy versions at the same time. For example, a tool action may be constrained by user permissions, Agent policy, Tool policy, Data policy, and platform/security policy.
+
+The runtime must evaluate the **effective policy set** for the protected action rather than assuming a single policy is authoritative.
+
+```text
+User constraints
+      +
+Agent constraints
+      +
+Capability constraints
+      +
+Data constraints
+      +
+Platform/security constraints
+      |
+      v
+Effective policy decision
+```
+
+Where multiple policies apply, conflict resolution must be deterministic and defined by the platform's governance rules. A lower-priority or less restrictive policy must not silently override a stronger applicable security or authorization constraint.
+
 ### Lifecycle
 
 A version can be immutable while its lifecycle status changes, for example:
@@ -51,6 +74,21 @@ Revocation does not mutate the policy definition. It changes whether new executi
 
 Policies participate in the same versioned dependency graph as other artifacts. A consumer such as an agent or tool references explicit policy versions, allowing impact analysis when a new policy version is introduced.
 
+The dependency graph must be maintained automatically rather than relying on developers to update a graph manually. Repository changes to versioned artifact declarations, including convention-based files such as `*.artifact.ts`, should be detected by the Dependency Analyzer and validated at PR/CI stages before merge or deployment.
+
+### Policy assignment history
+
+Consumer-to-policy-version assignments are auditable. The platform should retain the effective assignment history needed to determine which policy versions governed an artifact or execution at a given point in time.
+
+For example:
+
+```text
+Agent v6 -> Policy A v2
+Agent v7 -> Policy A v3
+```
+
+This history supports audit, rollback, impact analysis, and reconstruction of historical executions.
+
 ### Traceability
 
 Execution traces must record the policy version(s) that governed material decisions.
@@ -61,4 +99,6 @@ Execution traces must record the policy version(s) that governed material decisi
 - Policy changes are explicit and reviewable.
 - Consumers can be migrated deliberately.
 - Policy rollback is possible by assigning a previous still-valid version where permitted.
+- Effective policy decisions can account for multiple independent constraints.
+- Dependency changes can be detected automatically before release.
 - Governance becomes a cross-cutting concern with shared policy definitions and distributed enforcement.
