@@ -21,6 +21,7 @@ Relevant threats include:
 - data leakage
 - excessive privileges
 - denial of service/resource exhaustion
+- confused-deputy behavior
 
 ### AI-specific threats
 
@@ -39,14 +40,59 @@ Relevant threats include:
 
 ## Decision
 
-Security is a cross-cutting architecture concern with defense in depth.
+Security is a cross-cutting architecture concern with defense in depth. Security controls are enforced at the boundaries where the relevant decision or protected action occurs rather than relying on the LLM or a single upstream component to make security decisions correctly.
+
+### Security boundaries
+
+The principal boundaries include:
+
+```text
+User / Client
+    |
+    v
+Identity / API Gate
+    |
+    v
+Control Plane / Execution Plane
+    |
+    v
+Agent Runtime
+    |
+    +---- LLM Gateway
+    +---- RAG Runtime
+    +---- Tool/MCP Runtime
+                 |
+                 v
+          External systems
+```
+
+Each boundary applies the controls relevant to its responsibility. Downstream execution services do not blindly trust an upstream authorization decision when they are themselves responsible for protecting a resource or action.
+
+### Identity
+
+AI Nexus distinguishes **human identity** from **workload/service identity**.
+
+A security decision may depend on:
+
+- initiating human/user identity
+- tenant/organization
+- user roles/claims/permissions
+- calling service/workload identity
+- Agent identity/version
+- target resource
+- requested operation
+- applicable policy versions
+
+An Agent or service must not receive unrestricted authority merely because the initiating user has broad access. The effective authorization decision must account for the identities and constraints relevant to the action.
+
+### Core controls
 
 Controls include:
 
 - strong authentication and service identity
 - RBAC plus policy-based authorization where needed
 - tenant/data isolation
-- least-privilege tool permissions
+- least-privilege and capability-based tool permissions
 - immutable/versioned policy enforcement
 - input/output validation
 - data classification and access-aware retrieval
@@ -58,6 +104,69 @@ Controls include:
 - evaluation and release gates
 - human approval for policy-defined high-risk actions
 - continuous monitoring and alerting
+
+### Prompt injection and untrusted content
+
+AI Nexus treats model-generated instructions, retrieved documents, and other external content as **untrusted data**, not as authorization or control instructions.
+
+For example, a retrieved document may contain an instruction to ignore the Agent's policy and invoke a tool. The content may be supplied to the model as context, but it cannot authorize the requested operation.
+
+```text
+Retrieved content
+      |
+      v
+    Model
+      |
+  action proposal
+      |
+      v
+Tool/MCP Runtime
+      |
+ authorization + policy
+      |
+      +---- DENY
+      |
+      +---- APPROVAL
+      |
+      +---- ALLOW -> execute
+```
+
+### Tool security and capability boundaries
+
+Tool access is treated as a hard security boundary. Authorization considers the tool identity, requested operation/capability, target/resource, initiating identity, workload/Agent identity, and applicable policy constraints.
+
+Where appropriate, tools should expose narrow capabilities such as `email.read`, `email.search`, and `email.send` rather than one broad unrestricted capability.
+
+LLM-generated tool calls are proposals only. The LLM cannot authorize its own proposed action.
+
+### Confused-deputy protection
+
+AI Nexus must prevent a highly privileged tool or connector from using its own authority to perform an action that the initiating user, Agent, or policy context does not permit.
+
+For protected operations the platform must be able to establish:
+
+- who initiated the request
+- which workload/service is executing it
+- on whose authority it is executing
+- which resource is targeted
+- which operation is requested
+- which policies govern the action
+
+### Secret isolation
+
+Secrets and credentials must remain outside normal LLM context.
+
+```text
+Secret Store
+     |
+     v
+Tool / Connector
+     |
+     v
+External API
+```
+
+The architecture must not pass API keys, access tokens, or other secrets through the Agent or model merely because a downstream tool requires them.
 
 ### Tool abuse detection and response
 
@@ -72,11 +181,45 @@ The platform must not only deny forbidden actions. When an agent proposes or att
 
 The trace must explain **why the attempted action occurred**, not merely record the final denial.
 
+A security event must be correlated with the parent execution trace so investigators can reconstruct the sequence of model calls, retrieved content, tool proposals, policy decisions, approvals, and prior actions that led to the event.
+
+### AI and software supply chain
+
+Security review applies to the broader AI supply chain, including:
+
+- application dependencies
+- container/base images
+- MCP/tool packages
+- model/provider dependencies
+- Agent artifacts
+- prompts/configuration
+- policies
+- RAG knowledge sources
+
+Versioned artifact relationships should participate in the dependency graph so security analysis and impact analysis can identify affected consumers.
+
+### Security release gates
+
+Security controls are part of the CI/CD and release process. Depending on artifact and change type, release gates may include:
+
+- dependency/supply-chain scanning
+- unit/integration security tests
+- authorization/policy tests
+- prompt-injection tests
+- tool-abuse tests
+- secret scanning
+- artifact/dependency validation
+- AI evaluation thresholds
+
+A release must not bypass required security gates merely because the change is classified as an AI prompt/configuration change rather than application code.
+
 ## Consequences
 
 - Security decisions occur before and during execution.
 - AI-specific controls cannot rely on the model behaving correctly.
 - Tool permissions become a hard security boundary.
-- Security telemetry must correlate with normal execution traces.
-- High-risk operational actions can require explicit approval.
-- Security architecture must be tested as part of evaluation and CI/CD gates.
+- Security telemetry correlates with normal execution traces.
+- Human approval can protect policy-defined high-risk operational actions.
+- Secrets remain outside normal model context.
+- Security architecture is tested as part of evaluation and CI/CD gates.
+- Identity, policy, resource, and workload context can be reconstructed for material security decisions.
