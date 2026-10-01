@@ -21,11 +21,13 @@ Responsible for managing platform state and lifecycle, including:
 
 - agent/artifact registration and lifecycle
 - version and dependency management
-- policy lifecycle and consumer assignment
+- policy lifecycle, publication, and consumer assignment
 - model/provider/tool/knowledge registries
 - marketplace metadata and access workflows
 - evaluation configuration and release gates
 - governance workflows and administrative operations
+
+The Control Plane manages policy lifecycle, but **policy definitions are not owned exclusively by the Control Plane**. Policies are shared, versioned governance artifacts with a common authoritative origin; execution components consume and enforce the applicable policy versions.
 
 ### Execution Plane
 
@@ -47,7 +49,7 @@ Capabilities required by both planes will be implemented as shared platform capa
 
 - identity and tenant context
 - authorization/policy decision capability
-- configuration access
+- access to the authoritative policy/configuration state
 - secrets/credential access interfaces
 - audit/event publication
 - trace context propagation
@@ -68,5 +70,5 @@ The architecture must therefore support an early ingress/authorization gate befo
 - Execution cannot assume that a request is trusted merely because it entered the platform.
 - Authorization and policy enforcement are runtime concerns as well as lifecycle concerns.
 - Shared services must have stable contracts so both planes can consume them.
-- Control-plane failures should not unnecessarily prevent already-authorized execution where a cached/snapshotted decision is explicitly safe; this behavior will be specified later.
+- The exact availability/caching strategy for shared policy decisions will be defined by the implementation specification according to security and consistency requirements; no bypass of required runtime authorization is implied.
 - The separation creates natural future microservice boundaries without requiring every boundary to be independently deployed in v1.
