@@ -10,7 +10,7 @@ The ADRs are intentionally being introduced before implementation so the impleme
 - **Accepted** — reviewed and approved for implementation.
 - **Superseded** — replaced by a later ADR.
 
-The ADRs have completed the review/approval phase and are now the accepted architectural baseline for implementation and the Stage 3B requirements/architecture specification.
+The ADRs have completed the review/approval phase and are now the accepted architectural baseline for implementation and the Stage 3B requirements/architecture specification. Individual ADR headers MUST use `Status: Accepted` and remain consistent with this index.
 
 The working process is:
 
