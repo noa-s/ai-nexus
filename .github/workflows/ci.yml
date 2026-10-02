@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [staging, main]
+
+jobs:
+  node-foundation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api-edge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/api-edge/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  python-foundation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/ai-data-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m compileall -q src tests
+      - run: python -m unittest discover -s tests
+
+  repository-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for obvious private key material
+        run: |
+          if grep -R -n --exclude-dir=.git --exclude='*.md' -E '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' .; then
+            echo "Private key material detected"
+            exit 1
+          fi
