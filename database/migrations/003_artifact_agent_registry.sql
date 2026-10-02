@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS registry.agent_policy_reference (
 );
 
 CREATE TABLE IF NOT EXISTS registry.declared_dependency (
+  dependency_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   agent_id TEXT NOT NULL,
   agent_version TEXT NOT NULL,
   source_artifact_type TEXT NOT NULL,
@@ -104,11 +105,21 @@ CREATE TABLE IF NOT EXISTS registry.declared_dependency (
   consumer_owner_ref TEXT NOT NULL,
   declaration_origin TEXT NOT NULL,
   source_repository_location TEXT,
-  PRIMARY KEY (agent_id, agent_version, target_artifact_type, target_artifact_id, COALESCE(target_version, ''), COALESCE(target_version_constraint, ''), relationship_type),
   FOREIGN KEY (agent_id, agent_version)
     REFERENCES registry.agent_version(agent_id, version),
   CHECK ((target_version IS NOT NULL) <> (target_version_constraint IS NOT NULL))
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS declared_dependency_identity_idx
+  ON registry.declared_dependency (
+    agent_id,
+    agent_version,
+    target_artifact_type,
+    target_artifact_id,
+    COALESCE(target_version, ''),
+    COALESCE(target_version_constraint, ''),
+    relationship_type
+  );
 
 CREATE INDEX IF NOT EXISTS artifact_version_lookup_idx
   ON registry.artifact_version (artifact_type, artifact_id, created_at DESC);
