@@ -1,6 +1,6 @@
 # ADR-013: Distributed AI Observability and Causal Tracing
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
