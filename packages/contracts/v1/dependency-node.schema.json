@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/dependency-node.schema.json",
+  "title": "DependencyNode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifactType", "artifactId", "version"],
+  "properties": {
+    "artifactType": { "type": "string", "enum": ["agent", "prompt", "policy", "knowledge", "tool", "model-capability", "evaluation-suite", "platform-component"] },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 }
+  }
+}
