@@ -123,13 +123,13 @@ jobs:
       - name: Verify immutable audit evidence
         run: |
           echo "Verifying immutable audit evidence..."
-          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO authorization.event(event_id, event_type, tenant_id) VALUES ('00000000-0000-0000-0000-000000000001', 'AUTHORIZATION_DENIED', 'ci-tenant') ON CONFLICT DO NOTHING;"
-          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE authorization.event SET event_type = 'TAMPERED' WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO \"authorization\".event(event_id, event_type, tenant_id) VALUES ('00000000-0000-0000-0000-000000000001', 'AUTHORIZATION_DENIED', 'ci-tenant') ON CONFLICT DO NOTHING;"
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE \"authorization\".event SET event_type = 'TAMPERED' WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
             echo "Audit evidence mutation unexpectedly succeeded"
             exit 1
           fi
           echo "Audit evidence mutation was correctly rejected."
-          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM authorization.event WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM \"authorization\".event WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
             echo "Audit evidence deletion unexpectedly succeeded"
             exit 1
           fi
