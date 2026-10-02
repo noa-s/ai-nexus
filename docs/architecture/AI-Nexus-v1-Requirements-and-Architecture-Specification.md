@@ -1,7 +1,7 @@
 # AI Nexus v1 — Requirements & Architecture Specification
 
-- **Status:** Draft — Stage 3B.6
-- **Version:** 0.6
+- **Status:** Draft — Stage 3B.7 — ADR Coverage & Consistency Gap Closure
+- **Version:** 0.7
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 
@@ -1247,10 +1247,315 @@ The following are intentionally deferred to implementation design and MUST be re
 
 These are implementation-level choices unless they expose a contradiction with an accepted ADR or this specification.
 
-# 36. Stage 3B Status
 
-**Status:** Specification sufficiently defined for implementation planning; implementation MUST begin only after final review of this specification and confirmation that no unresolved contradiction with ADR-001 through ADR-018 exists.
 
-**Version:** 0.6
+# 36. ADR Coverage and Implementation Obligations
+
+This section is a coverage audit of accepted ADR-001 through ADR-018. It does not replace, restate, or reinterpret the ADR decisions. It records the material v1 requirements and implementation obligations that must be represented in this specification so that implementation does not accidentally omit an accepted architectural decision.
+
+The ADR remains authoritative for the architectural decision and rationale. Where this section states a concrete v1 obligation, the corresponding ADR is the architectural basis.
+
+## 36.1 ADR-001 — Enterprise AI Platform Scope
+
+The v1 implementation MUST treat AI Nexus as an enterprise AI platform rather than a single AI application.
+
+The platform MUST provide reusable capabilities for platform builders and enterprise consumers, including governed AI ingress, identity and authorization, artifact lifecycle management, LLM access, Agent execution, RAG, evaluation, observability/auditability, FinOps, Marketplace discovery, and Microsoft/Azure ecosystem integration.
+
+AI Nexus MUST NOT become the system of record for enterprise business processes. Business systems remain external systems of record and are accessed through governed integrations and tools.
+
+**Implementation obligation:** domain boundaries MUST preserve this separation between platform-owned AI artifacts/execution and external business-system data/process ownership.
+
+## 36.2 ADR-002 — Control Plane / Execution Plane
+
+The implementation MUST preserve the separation between:
+
+- Control Plane: lifecycle, configuration, governance, registration, versioning, evaluation, discovery, and administrative operations.
+- Execution Plane: live Agent, LLM, RAG, and tool execution.
+- Shared capabilities: cross-cutting services used by both planes.
+
+Policy definitions MUST remain shared versioned governance artifacts with a common authoritative origin; the Control Plane manages policy lifecycle but does not become the exclusive owner of policy semantics. Execution components consume and independently enforce applicable policy versions.
+
+The external/API edge SHOULD provide an early identity/authorization/constraint gate before expensive execution where practical, but this early gate MUST NOT replace runtime authorization for actions that arise later.
+
+Control Plane components MUST NOT become an alternate path for live governed execution.
+
+## 36.3 ADR-003 — Immutable Versioned Artifacts and Dependency Graph
+
+Every governed artifact MUST have an immutable versioned identity suitable for audit and reproducibility.
+
+For v1, repository-backed artifact discovery MUST support deterministic scanning of the agreed artifact representation, including the `<agent-name>.artifact.ts` convention where applicable.
+
+Dependency detection MUST be reproducible and MUST be recomputable during PR/CI validation. The implementation MUST support direct and transitive dependency impact analysis.
+
+Dependency consistency MUST be enforceable at the CI/release boundary. A release MUST be able to identify affected artifacts and determine whether re-evaluation, security review, approval, or deployment restrictions are required.
+
+The dependency graph MUST remain derived/recomputable evidence rather than the sole authoritative source of artifact identity.
+
+## 36.4 ADR-004 — Modular / Microservice-Ready Architecture
+
+Logical module boundaries MUST remain independently understandable and ownable even where v1 deploys multiple logical modules together.
+
+The v1 implementation MUST NOT require one deployment unit per logical component. Module boundaries, contracts, ownership, and dependency direction MUST permit later extraction where justified.
+
+## 36.5 ADR-005 — Node.js / TypeScript + Python Polyglot Runtime
+
+Node.js/TypeScript and Python MUST be treated as intentional runtime choices rather than accidental implementation differences.
+
+Python MUST be used where Python-specific AI/ML ecosystem capabilities materially justify it; Node.js/TypeScript MUST remain the primary platform/service runtime where appropriate.
+
+Where components are independently deployable, the deployment model SHOULD permit separate Node.js and Python containers/processes. A single container containing both runtimes is not the default for independently deployable services.
+
+Cross-runtime communication MUST use explicit, versioned, language-neutral contracts and MUST preserve identity, authorization context, correlation, policy references, and causal trace context.
+
+## 36.6 ADR-006 — PostgreSQL + pgvector
+
+PostgreSQL MUST remain the primary authoritative relational data store for platform metadata and governed state.
+
+pgvector MUST provide the vector storage/search capability required by v1 RAG.
+
+The implementation MAY combine vector similarity with lexical/metadata filtering or hybrid retrieval where that improves retrieval quality or authorization-aware filtering. Hybrid retrieval MUST NOT bypass authorization or provenance requirements.
+
+Embeddings remain derived data. Knowledge/document versions remain the authoritative lineage anchors.
+
+## 36.7 ADR-007 — LLM Gateway and Model Routing
+
+All production LLM access MUST pass through the LLM Gateway.
+
+The Model Router MUST use an authoritative Model Registry for model/provider capability metadata rather than maintaining an unrelated private model catalog.
+
+Routing decisions MUST be able to consider, where applicable:
+
+- task/request classification;
+- capability requirements;
+- model/provider availability;
+- cost constraints;
+- latency requirements;
+- data sensitivity/classification;
+- tenant or organizational constraints;
+- policy constraints;
+- evaluation evidence;
+- model/provider capability metadata.
+
+Provider adapters MUST normalize provider-specific responses into the gateway contract.
+
+Usage evidence MUST preserve provider/model identity and available token dimensions, including input, output, cached, and reasoning-token information where the provider exposes them.
+
+When provider usage or cost information is unavailable, the system MUST distinguish unavailable values from estimated values rather than presenting estimates as measured facts.
+
+## 36.8 ADR-008 — Agent Runtime
+
+The Agent Runtime MUST implement an explicit execution lifecycle rather than treating execution as a single opaque LLM request.
+
+The v1 lifecycle MUST preserve these eight logical stages from ADR-008:
+
+1. request/context initialization;
+2. Agent resolution;
+3. planning/orchestration;
+4. model interaction;
+5. RAG coordination;
+6. tool coordination;
+7. approval handling;
+8. response validation.
+
+The runtime MUST preserve the identity, tenant, role, request metadata, trace context, resolved Agent/artifact version, immutable policy references, downstream provenance, and approval state needed by those stages.
+
+Pause, resume, retry, approval, failure, and terminal states MUST be explicit and auditable.
+
+The Agent Runtime MUST NOT own the authorization logic of downstream runtimes. LLM Gateway, RAG Runtime, and Tool/MCP Runtime MUST independently enforce their own applicable policies and authorization checks.
+
+## 36.9 ADR-009 — RAG and Knowledge Versioning
+
+Knowledge ingestion MUST distinguish source-change detection from ingestion/version creation.
+
+v1 connectors SHOULD support the source-change detection mechanisms applicable to the source, including revision identifiers, last-modified timestamps, content hashes, webhooks/events, or scheduled polling.
+
+A detected source change MUST create a new immutable document version through the governed ingestion/versioning pipeline.
+
+The lineage model MUST distinguish at least:
+
+- source identity;
+- document version;
+- chunk identity/version;
+- embedding identity/version;
+- ingestion pipeline/version.
+
+Chunk identity MUST be scoped to the document version from which the chunk was produced.
+
+Embedding changes MUST NOT silently mutate the authoritative document version.
+
+Retrieval MUST be able to preserve document-version and source provenance in execution evidence.
+
+## 36.10 ADR-010 — Immutable Versioned Policies
+
+Policies MUST be immutable once activated.
+
+The implementation MUST support a policy lifecycle equivalent to:
+
+```text
+Draft → Active → Deprecated → Archived
+                  \
+                   → Revoked
+```
+
+where lifecycle transitions themselves are governed and auditable.
+
+Policy artifacts MAY represent distinct policy types including access, Agent, tool, model, data, RAG, security, approval, cost/budget, rate-limit, and retention policies.
+
+A runtime decision MAY be governed by multiple applicable policy versions simultaneously. Effective-policy composition and conflict resolution MUST be deterministic; a weaker or lower-priority policy MUST NOT silently override a stronger applicable authorization or security constraint.
+
+Consumer-to-policy-version assignments MUST be auditable and historically reconstructable so that an Agent/tool/execution can be mapped to the policy version(s) that governed it at the relevant time.
+
+Policy decisions MUST record the policy identity/version that produced the decision.
+
+Historical executions MUST remain reconstructable against the policy version that was effective at execution time.
+
+## 36.11 ADR-011 — AI Security Architecture
+
+Security controls MUST cover AI-specific threats in addition to conventional application security.
+
+The v1 threat/control model MUST explicitly address:
+
+- prompt and indirect prompt injection;
+- data exfiltration;
+- excessive agency;
+- tool abuse;
+- confused-deputy behavior;
+- secret/credential exposure;
+- provider compromise/failure;
+- AI supply-chain risk;
+- governance bypass;
+- cost/resource abuse.
+
+The supply-chain boundary MUST include prompts/configuration, model/provider dependencies, MCP/tool packages, Agent artifacts, and RAG/knowledge sources where applicable.
+
+A confused-deputy defense MUST preserve the distinction between caller identity, delegated execution identity, resource ownership, and authorization context.
+
+A forbidden tool action MUST result in a deterministic deny path that produces the applicable policy decision and security/audit evidence and is linked to the causal execution trace.
+
+Security controls MUST NOT rely on an LLM deciding whether an action is authorized.
+
+## 36.12 ADR-012 — AI Evaluation
+
+Evaluation MUST be versioned and reproducible through explicit references to evaluation datasets, evaluator versions, metric definitions, model versions, and execution context.
+
+The evaluation architecture MUST support:
+
+- automated evaluation;
+- deterministic metrics;
+- semantic/LLM-judge metrics with evaluator provenance;
+- human evaluation/calibration where required;
+- production evaluation signals where appropriate;
+- security/governance evaluation;
+- groundedness evaluation for RAG workflows.
+
+Evaluation results MUST be usable as release-gate evidence.
+
+No universal composite score may hide independent blocking security or governance failures.
+
+## 36.13 ADR-013 — Causal Observability
+
+The causal execution model MUST distinguish and correlate at least:
+
+- `trace_id`;
+- `span_id`;
+- `parent_span_id`;
+- `request_id`;
+- `agent_execution_id`.
+
+Causal evidence MUST be able to link material execution inputs and decisions to artifact versions, policy versions, model/provider versions, knowledge/document versions, tools, authorization decisions, and deployment identity.
+
+Observability payload handling MUST support policy-controlled modes such as:
+
+- full payload;
+- redacted payload;
+- metadata only;
+- hash/reference only.
+
+Prompts, retrieved content, tool arguments, model responses, and identifiers MUST NOT be retained at full fidelity merely because they are useful for debugging; classification and policy MUST determine the permitted evidence representation.
+
+The API/Edge boundary MUST remain an ingress boundary and MUST NOT be treated as a separate privileged "Ingress Service" that bypasses the platform's governance model.
+
+## 36.14 ADR-014 — AI FinOps and Business Value
+
+Cost attribution MUST support the dimensions required by the platform, including provider, model, application/Agent, workflow/execution, user, team/business unit, and tenant where applicable.
+
+Measured usage/cost MUST be distinguished from estimated values.
+
+Pricing data MUST be versioned so historical cost evidence remains reproducible.
+
+The platform MUST support cost anomaly detection and optimization decision surfaces where sufficient usage data exists.
+
+Dynamic cost controls, including maximum-cost-per-request/workflow policies where configured, MUST be enforceable before or during execution rather than being dashboard-only observations.
+
+Business value measurements MUST remain explicitly distinguishable from cost measurements and estimates.
+
+## 36.15 ADR-015 — AI Marketplace
+
+Marketplace discovery MUST support conversational/semantic discovery in addition to conventional structured search where applicable.
+
+A published Agent/AI capability MUST have an explicit product-facing Agent Card or equivalent governed discovery artifact containing the information required for safe enterprise discovery and access decisions.
+
+Marketplace publication, discovery, access, and execution authorization MUST remain separate concerns.
+
+Marketplace versions MUST remain linked to immutable artifact versions and historical evidence.
+
+## 36.16 ADR-016 — Microsoft / Copilot Studio Integration
+
+The v1 Microsoft integration MUST explicitly target the agreed Copilot Studio custom-connector path.
+
+Copilot Studio MUST NOT receive privileged direct access to internal AI Nexus runtime services.
+
+Microsoft identity/context MUST be mapped into AI Nexus identity and authorization context, while AI Nexus remains authoritative for AI Nexus resources and policies.
+
+Microsoft 365 Copilot, API plugins, MCP plugins, and broader organization-wide Microsoft enforcement remain future/extension capabilities unless separately included in the v1 scope.
+
+## 36.17 ADR-017 — RBAC and Auditor
+
+The authorization model MUST include an Auditor role/capability with least-privilege read-oriented access to governance evidence.
+
+The Auditor Agent, where enabled, MUST have a dedicated service identity and MUST default to read-only analysis capabilities.
+
+Auditor access itself MUST be auditable. Reading governance/audit evidence MUST produce an auditable `AUDIT_READ` event or equivalent evidence.
+
+Auditor capabilities MUST NOT become a general-purpose administrative or execution identity.
+
+## 36.18 ADR-018 — Production Deployment and IaC
+
+Production deployment MUST preserve reproducibility through IaC, with Terraform as the infrastructure source of truth.
+
+The deployment model MUST expose health/readiness state and deployment version identity so operational systems can determine whether the intended version is running.
+
+Production release design MUST include rollback behavior.
+
+Database migrations MUST be compatible with the deployment/rollback strategy; schema changes MUST NOT make a rollback of application artifacts unsafe by default.
+
+CI/CD MUST include the agreed repository automation path and may use GitHub Actions for the repository workflow, while keeping deployment logic reproducible and environment-aware.
+
+## 36.19 ADR Coverage Verification Rule
+
+Before Stage 3B is declared complete, each accepted ADR-001 through ADR-018 MUST have:
+
+1. an explicit reference in this specification;
+2. all material v1 implementation obligations represented as requirements, constraints, contracts, or acceptance criteria;
+3. no contradictory requirement in another specification section;
+4. a clear path to an implementation work item and acceptance evidence.
+
+An ADR may contain rationale or future consequences that do not belong in the v1 specification. Those do not need to be copied. The coverage requirement applies to material decisions that affect v1 behavior, interfaces, security, governance, data, runtime, delivery, or acceptance.
+
+## 36.20 ADR Status Consistency
+
+ADR-001 through ADR-018 are accepted architectural decisions for this project. The individual ADR files MUST therefore use:
+
+```text
+Status: Accepted
+```
+
+The ADR index and the individual ADR headers MUST agree. No individual ADR may remain marked `Proposed` after this gap-closure change is merged.
+
+# 37. Stage 3B Status
+
+**Status:** Draft — Stage 3B.7 — ADR Coverage & Consistency Gap Closure. The specification is not considered final until ADR coverage and ADR status consistency are verified.
+
+**Version:** 0.7
 
 **Next stage:** Stage 4 — implementation planning and controlled platform build.
