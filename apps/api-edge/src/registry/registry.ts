@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { recordAuthorizationEvent, type AuditEventStore } from "../auth/audit.js";
 import type { AuthorizationResult } from "../auth/types.js";
 import type { PolicyRegistry } from "../auth/policy-registry.js";
-import { ARTIFACT_TYPES, DEPENDENCY_RELATIONSHIPS, LIFECYCLE_STATES, type AgentIdentity, type AgentVersion, type ArtifactDeclaration, type ArtifactIdentity, type ArtifactType, type ArtifactVersion, type DependencyReference, type LifecycleState, type PolicyVersionReference, type RegistryActor, type RegistryAuditEvent } from "./types.js";
+import { ARTIFACT_TYPES, DEPENDENCY_RELATIONSHIPS, LIFECYCLE_STATES, type AgentIdentity, type AgentVersion, type ArtifactDeclaration, type ArtifactIdentity, type ArtifactType, type ArtifactVersion, type DependencyReference, type GovernanceStatus, type LifecycleState, type PolicyVersionReference, type RegistryActor, type RegistryAuditEvent } from "./types.js";
 
 export interface RegistryAuditSink { append(event: RegistryAuditEvent): void; }
 export class InMemoryRegistryAuditSink implements RegistryAuditSink {
@@ -41,8 +41,15 @@ export class ArtifactAgentRegistry {
     if (actor.tenantId !== input.tenantId) return this.reject("artifact.create", actor, input.artifactId, "TENANT_SCOPE_DENIED");
     const key = this.artifactKey(input.artifactType, input.artifactId);
     if (this.artifacts.has(key)) return this.reject("artifact.create", actor, key, "ARTIFACT_EXISTS");
-    const artifact = deepFreeze({ ...clone(input), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    const now = new Date().toISOString(); const artifact = deepFreeze({ ...clone(input), createdAt: now, updatedAt: now });
     this.artifacts.set(key, artifact); this.record("artifact.create", actor, key, "REGISTRY_MUTATION", "OK", decision); return clone(artifact);
+  }
+
+  getArtifact(actor: RegistryActor, artifactType: ArtifactType, artifactId: string): ArtifactIdentity {
+    const decision = this.assertAuthorized(actor, "artifact.read", `${artifactType}:${artifactId}`); assertArtifactType(artifactType);
+    const artifact = this.artifacts.get(this.artifactKey(artifactType, artifactId));
+    if (!artifact || actor.tenantId !== artifact.tenantId) return this.reject("artifact.read", actor, artifactId, "ARTIFACT_NOT_FOUND");
+    void decision; return clone(artifact);
   }
 
   createVersion(actor: RegistryActor, input: Omit<ArtifactVersion, "contentDigest" | "createdAt">): ArtifactVersion {
@@ -52,10 +59,17 @@ export class ArtifactAgentRegistry {
     if (!this.artifacts.has(this.artifactKey(input.artifactType, input.artifactId))) return this.reject("artifact-version.create", actor, input.artifactId, "ARTIFACT_NOT_FOUND");
     const key = this.versionKey(input.artifactType, input.artifactId, input.version);
     if (this.versions.has(key)) return this.reject("artifact-version.create", actor, key, "VERSION_EXISTS");
-    const content = deepFreeze(clone(input.content));
-    const version = deepFreeze({ ...clone(input), content, contentDigest: digest(content), createdAt: new Date().toISOString() });
+    const content = deepFreeze(clone(input.content)); const version = deepFreeze({ ...clone(input), content, contentDigest: digest(content), createdAt: new Date().toISOString() });
     this.versions.set(key, version); this.record("artifact-version.create", actor, key, "REGISTRY_MUTATION", "OK", decision); return clone(version);
   }
+
+  listVersions(actor: RegistryActor, artifactType: ArtifactType, artifactId: string): readonly ArtifactVersion[] {
+    this.assertAuthorized(actor, "artifact-version.list", `${artifactType}:${artifactId}`); const tenantId = this.artifactTenant(artifactType, artifactId);
+    if (!tenantId || actor.tenantId !== tenantId) return this.reject("artifact-version.list", actor, artifactId, "ARTIFACT_NOT_FOUND");
+    return [...this.versions.values()].filter((v) => v.artifactType === artifactType && v.artifactId === artifactId).map(clone);
+  }
+
+  resolveVersion(actor: RegistryActor, artifactType: ArtifactType, artifactId: string, version: string): ArtifactVersion { return this.getVersion(actor, artifactType, artifactId, version); }
 
   registerAgent(actor: RegistryActor, input: Omit<AgentIdentity, "artifactType" | "createdAt" | "updatedAt">): AgentIdentity {
     const artifact = this.createArtifact(actor, { ...input, artifactType: "agent" });
@@ -64,8 +78,7 @@ export class ArtifactAgentRegistry {
   }
 
   createAgentVersion(actor: RegistryActor, declaration: ArtifactDeclaration, content: Record<string, unknown>, requestedVersion = declaration.version): AgentVersion {
-    const decision = this.assertAuthorized(actor, "agent-version.create", `${declaration.agentId}@${requestedVersion}`);
-    const agent = this.agents.get(declaration.agentId);
+    const decision = this.assertAuthorized(actor, "agent-version.create", `${declaration.agentId}@${requestedVersion}`); const agent = this.agents.get(declaration.agentId);
     if (!agent) return this.reject("agent-version.create", actor, declaration.agentId, "AGENT_NOT_FOUND");
     if (actor.tenantId !== agent.tenantId) return this.reject("agent-version.create", actor, declaration.agentId, "TENANT_SCOPE_DENIED");
     if (declaration.schemaVersion !== "1") return this.reject("agent-version.create", actor, declaration.agentId, "DECLARATION_SCHEMA_UNSUPPORTED");
@@ -74,61 +87,50 @@ export class ArtifactAgentRegistry {
     if (declaration.version !== requestedVersion) return this.reject("agent-version.create", actor, declaration.agentId, "DECLARATION_VERSION_MISMATCH");
     this.validatePolicyReferences(declaration.policyReferences, actor, agent.tenantId); this.validateDependencies(declaration.dependencies);
     const artifactVersion = this.createVersion(actor, { artifactType: "agent", artifactId: declaration.agentId, version: requestedVersion, content, lifecycleState: "DRAFT", createdBy: actor.subject });
-    const version = deepFreeze({ ...artifactVersion, agentId: declaration.agentId, declaredCapabilities: [...declaration.declaredCapabilities], declaredTasks: [...declaration.declaredTasks], modelCapabilityReferences: [], toolReferences: [], knowledgeConfigurationReferences: [], deploymentStatus: "UNDEPLOYED", accessRequirements: [], policyReferences: clone(declaration.policyReferences), dependencies: clone(declaration.dependencies) });
-    this.agentVersions.set(this.versionKey("agent", declaration.agentId, requestedVersion), version);
-    this.record("agent-version.create", actor, `${declaration.agentId}@${requestedVersion}`, "REGISTRY_MUTATION", "OK", decision); return clone(version);
+    const version = deepFreeze({ ...artifactVersion, agentId: declaration.agentId, declaredCapabilities: [...declaration.declaredCapabilities], declaredTasks: [...declaration.declaredTasks], modelCapabilityReferences: [], toolReferences: [], knowledgeConfigurationReferences: [], deploymentStatus: "UNDEPLOYED", accessRequirements: [], governanceStatus: "PENDING" as const, policyReferences: clone(declaration.policyReferences), dependencies: clone(declaration.dependencies) });
+    this.agentVersions.set(this.versionKey("agent", declaration.agentId, requestedVersion), version); this.record("agent-version.create", actor, `${declaration.agentId}@${requestedVersion}`, "REGISTRY_MUTATION", "OK", decision); return clone(version);
   }
 
   transitionLifecycle(actor: RegistryActor, artifactType: ArtifactType, artifactId: string, version: string, next: LifecycleState): ArtifactVersion {
-    const decision = this.assertAuthorized(actor, "artifact-version.lifecycle", this.versionKey(artifactType, artifactId, version));
-    const current = this.getVersion(actor, artifactType, artifactId, version);
+    const decision = this.assertAuthorized(actor, "artifact-version.lifecycle", this.versionKey(artifactType, artifactId, version)); const current = this.getVersion(actor, artifactType, artifactId, version);
     if (!transitionAllowed(current.lifecycleState, next)) return this.reject("artifact-version.lifecycle", actor, this.versionKey(artifactType, artifactId, version), "INVALID_LIFECYCLE_TRANSITION");
     const updated = deepFreeze({ ...current, lifecycleState: next }); this.versions.set(this.versionKey(artifactType, artifactId, version), updated);
-    const agentVersion = this.agentVersions.get(this.versionKey("agent", artifactId, version));
-    if (agentVersion) this.agentVersions.set(this.versionKey("agent", artifactId, version), deepFreeze({ ...agentVersion, lifecycleState: next }));
+    const agentKey = this.versionKey("agent", artifactId, version); const agentVersion = this.agentVersions.get(agentKey);
+    if (agentVersion) this.agentVersions.set(agentKey, deepFreeze({ ...agentVersion, lifecycleState: next, governanceStatus: this.governanceStatus(next, agentVersion.policyReferences) }));
     this.record("artifact-version.lifecycle", actor, this.versionKey(artifactType, artifactId, version), "REGISTRY_MUTATION", "OK", decision); return clone(updated);
   }
 
   getVersion(actor: RegistryActor, artifactType: ArtifactType, artifactId: string, version: string): ArtifactVersion {
-    const decision = this.assertAuthorized(actor, "artifact-version.read", `${artifactType}:${artifactId}@${version}`); assertArtifactType(artifactType);
-    const tenantId = this.artifactTenant(artifactType, artifactId); if (!tenantId || actor.tenantId !== tenantId) return this.reject("artifact-version.read", actor, `${artifactId}@${version}`, "VERSION_NOT_FOUND");
+    const decision = this.assertAuthorized(actor, "artifact-version.read", `${artifactType}:${artifactId}@${version}`); assertArtifactType(artifactType); const tenantId = this.artifactTenant(artifactType, artifactId);
+    if (!tenantId || actor.tenantId !== tenantId) return this.reject("artifact-version.read", actor, `${artifactId}@${version}`, "VERSION_NOT_FOUND");
     const value = this.versions.get(this.versionKey(artifactType, artifactId, version)); if (!value) return this.reject("artifact-version.read", actor, `${artifactId}@${version}`, "VERSION_NOT_FOUND");
     void decision; return clone(value);
   }
 
   getAgentVersion(actor: RegistryActor, agentId: string, version: string): AgentVersion {
-    const decision = this.assertAuthorized(actor, "agent-version.read", `${agentId}@${version}`);
-    const agent = this.agents.get(agentId); if (!agent || actor.tenantId !== agent.tenantId) return this.reject("agent-version.read", actor, `${agentId}@${version}`, "VERSION_NOT_FOUND");
+    const decision = this.assertAuthorized(actor, "agent-version.read", `${agentId}@${version}`); const agent = this.agents.get(agentId);
+    if (!agent || actor.tenantId !== agent.tenantId) return this.reject("agent-version.read", actor, `${agentId}@${version}`, "VERSION_NOT_FOUND");
     const value = this.agentVersions.get(this.versionKey("agent", agentId, version)); if (!value) return this.reject("agent-version.read", actor, `${agentId}@${version}`, "VERSION_NOT_FOUND");
     void decision; return clone(value);
   }
 
+  getPolicyReferences(actor: RegistryActor, agentId: string, version: string): readonly PolicyVersionReference[] { return this.getAgentVersion(actor, agentId, version).policyReferences; }
+  getDependencies(actor: RegistryActor, agentId: string, version: string): readonly DependencyReference[] { return this.getAgentVersion(actor, agentId, version).dependencies; }
+  getGovernanceStatus(actor: RegistryActor, agentId: string, version: string): GovernanceStatus { return this.getAgentVersion(actor, agentId, version).governanceStatus; }
+
+  private governanceStatus(lifecycle: LifecycleState, policies: readonly PolicyVersionReference[]): GovernanceStatus {
+    if (lifecycle === "REVOKED" || lifecycle === "ARCHIVED") return "NOT_ELIGIBLE";
+    return lifecycle === "APPROVED" || lifecycle === "PUBLISHED" ? "ELIGIBLE" : policies.every(Boolean) ? "PENDING" : "NOT_ELIGIBLE";
+  }
   private validatePolicyReferences(references: readonly PolicyVersionReference[], actor: RegistryActor, tenantId: string): void {
     if (actor.tenantId !== tenantId) this.reject("agent-version.policy-reference", actor, "policy", "TENANT_SCOPE_DENIED");
-    for (const reference of references) {
-      const version = this.options.policyRegistry.getVersion(reference.policyId, reference.policyVersion);
-      if (!version) this.reject("agent-version.policy-reference", actor, `${reference.policyId}@${reference.policyVersion}`, "POLICY_VERSION_NOT_FOUND");
-      if (version.lifecycleStatus !== "ACTIVE") this.reject("agent-version.policy-reference", actor, `${reference.policyId}@${reference.policyVersion}`, "POLICY_VERSION_NOT_ASSIGNABLE");
-    }
+    for (const reference of references) { const version = this.options.policyRegistry.getVersion(reference.policyId, reference.policyVersion); if (!version) this.reject("agent-version.policy-reference", actor, `${reference.policyId}@${reference.policyVersion}`, "POLICY_VERSION_NOT_FOUND"); if (version.lifecycleStatus !== "ACTIVE") this.reject("agent-version.policy-reference", actor, `${reference.policyId}@${reference.policyVersion}`, "POLICY_VERSION_NOT_ASSIGNABLE"); }
   }
-  private validateDependencies(dependencies: readonly DependencyReference[]): void {
-    for (const dependency of dependencies) {
-      if (!DEPENDENCY_RELATIONSHIPS.includes(dependency.relationshipType)) throw new Error(`unsupported dependency relationship: ${dependency.relationshipType}`);
-      if (!dependency.targetVersion && !dependency.targetVersionConstraint) throw new Error("dependency requires targetVersion or targetVersionConstraint");
-      if (dependency.targetVersion && dependency.targetVersionConstraint) throw new Error("dependency cannot contain both targetVersion and targetVersionConstraint");
-    }
-  }
-  private assertAuthorized(actor: RegistryActor, action: string, target: string): AuthorizationResult {
-    const result = this.options.authorize(actor, action, target);
-    if (this.options.authorizationAuditStore) recordAuthorizationEvent(actor, result, this.options.authorizationAuditStore);
-    if (result.decision !== "ALLOW") this.reject(action, actor, target, result.reasonCode);
-    return result;
-  }
+  private validateDependencies(dependencies: readonly DependencyReference[]): void { for (const dependency of dependencies) { if (!DEPENDENCY_RELATIONSHIPS.includes(dependency.relationshipType)) throw new Error(`unsupported dependency relationship: ${dependency.relationshipType}`); if (!dependency.targetVersion && !dependency.targetVersionConstraint) throw new Error("dependency requires targetVersion or targetVersionConstraint"); if (dependency.targetVersion && dependency.targetVersionConstraint) throw new Error("dependency cannot contain both targetVersion and targetVersionConstraint"); } }
+  private assertAuthorized(actor: RegistryActor, action: string, target: string): AuthorizationResult { const result = this.options.authorize(actor, action, target); if (this.options.authorizationAuditStore) recordAuthorizationEvent(actor, result, this.options.authorizationAuditStore); if (result.decision !== "ALLOW") this.reject(action, actor, target, result.reasonCode); return result; }
   private artifactTenant(type: ArtifactType, id: string): string { return this.artifacts.get(this.artifactKey(type, id))?.tenantId ?? ""; }
   private artifactKey(type: ArtifactType, id: string): string { return `${type}:${id}`; }
   private versionKey(type: ArtifactType, id: string, version: string): string { return `${this.artifactKey(type, id)}@${version}`; }
-  private record(action: string, actor: RegistryActor, target: string, eventType: RegistryAuditEvent["eventType"], reasonCode = "OK", decision?: AuthorizationResult): void {
-    this.auditSink.append({ eventId: randomUUID(), eventType, tenantId: actor.tenantId, actorId: actor.subject, action, target, resourceRef: target, reasonCode, policyVersions: decision?.policyVersions ?? [], requestId: actor.requestId ?? decision?.requestId, decisionId: decision?.decisionId, traceId: actor.traceId ?? decision?.traceId, createdAt: new Date().toISOString() });
-  }
+  private record(action: string, actor: RegistryActor, target: string, eventType: RegistryAuditEvent["eventType"], reasonCode = "OK", decision?: AuthorizationResult): void { this.auditSink.append({ eventId: randomUUID(), eventType, tenantId: actor.tenantId, actorId: actor.subject, action, target, resourceRef: target, reasonCode, policyVersions: decision?.policyVersions ?? [], requestId: actor.requestId ?? decision?.requestId, decisionId: decision?.decisionId, traceId: actor.traceId ?? decision?.traceId, createdAt: new Date().toISOString() }); }
   private reject<T>(action: string, actor: RegistryActor, target: string, reasonCode: string): T { this.record(action, actor, target, "REGISTRY_REJECTED", reasonCode); throw new Error(reasonCode); }
 }
