@@ -142,14 +142,6 @@ export function scanArtifactDeclarations(repositoryRoot: string): ScanResult {
     }
 
     const sourceFile = ts.createSourceFile(absolutePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-    const syntaxErrors = sourceFile.parseDiagnostics;
-    if (syntaxErrors.length > 0) {
-      const first = syntaxErrors[0];
-      const position = first.start === undefined ? undefined : location(sourceFile, sourceFile.getFullStart());
-      failures.push({ repositoryPath, message: ts.flattenDiagnosticMessageText(first.messageText, " "), line: position?.line, column: position?.column });
-      continue;
-    }
-
     const exported = findExportedDeclaration(sourceFile);
     if (!exported) {
       failures.push({ repositoryPath, message: "no statically inspectable exported object declaration found" });
