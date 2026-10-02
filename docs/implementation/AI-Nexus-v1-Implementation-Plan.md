@@ -1,7 +1,7 @@
 # AI Nexus v1 — Implementation Plan
 
-- **Status:** Draft — Stage 4.2
-- **Version:** 0.2
+- **Status:** Draft — Stage 4.2 — Step 02 Ready
+- **Version:** 0.3
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 - **Requirements baseline:** `docs/architecture/AI-Nexus-v1-Requirements-and-Architecture-Specification.md` v0.7
@@ -114,19 +114,21 @@ The following is the **initial v1 execution order** derived from the accepted AD
 
 ### Phase 1 — Foundation
 
-**Step 01 — Repository & Platform Foundation** — `READY`
+**Step 01 — Repository & Platform Foundation** — `COMPLETE`
 
 - Dependencies: none
 - Detailed plan: `steps/01-repository-and-platform-foundation.md`
 - Discovery: `AI-Nexus-v1-Repository-and-Architecture-Discovery.md`
+- Completion evidence: PR #16 merged to `staging`; final CI run for commit `12b23afa2a28279bd017ba612f5628c853071ef2` passed (workflow run `36967666739`).
 - Covers: monorepo/service-module structure, Node.js/TypeScript and Python foundations, shared language-neutral contracts, PostgreSQL + pgvector foundation, configuration, service identity foundations, container development support, and CI baseline.
 
 ### Phase 2 — Control Plane foundations
 
-**Step 02 — Identity, Authorization & Policy Foundation**
+**Step 02 — Identity, Authorization & Policy Foundation** — `READY`
 
 - Depends on: Step 01
-- Establishes the shared authorization/policy boundary, workload/service identity authorization, and protected service-to-service communication before protected runtime capabilities.
+- Detailed plan: `steps/02-identity-authorization-and-policy-foundation.md`
+- Establishes the shared authorization/policy boundary, workload/service identity authorization, immutable policy foundation, Auditor role boundary, and protected service-to-service communication before protected runtime capabilities.
 
 **Step 03 — Artifact, Agent & Version Registry**
 
@@ -229,8 +231,8 @@ Stage 4 is complete only when:
 
 ## 9. Current implementation baseline
 
-The Stage 4.2 discovery confirms that `staging` remains primarily an architecture/governance baseline. It contains the accepted ADR set, v1 specification, agent-governance guidance, implementation roadmap, and Step 01 contract, but no v1 application/service implementation. The detailed discovery and ADR-derived constraints are recorded in `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md`.
+Step 01 is complete and merged to `staging`. The repository now contains the executable foundation established by Step 01. Step 02 is the current controlled implementation step and its detailed execution contract is defined in `steps/02-identity-authorization-and-policy-foundation.md`.
 
 ## 10. Next controlled action
 
-**Step 01 is now READY.** No implementation capability outside the Step 01 contract may be activated until Step 01 is complete under its acceptance criteria and Definition of Done.
+**Step 02 is READY.** Before implementation begins, inspect the Step 02 contract against the relevant accepted ADRs, the v1 specification, and the actual Step 01 repository state. Implementation must then proceed only within the Step 02 scope and Definition of Done.
