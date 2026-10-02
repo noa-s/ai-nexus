@@ -12,17 +12,7 @@ export const ARTIFACT_TYPES = [
 ] as const;
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
-
-export const LIFECYCLE_STATES = [
-  "DRAFT",
-  "VALIDATING",
-  "APPROVED",
-  "PUBLISHED",
-  "DEPRECATED",
-  "ARCHIVED",
-  "REVOKED",
-] as const;
-
+export const LIFECYCLE_STATES = ["DRAFT", "VALIDATING", "APPROVED", "PUBLISHED", "DEPRECATED", "ARCHIVED", "REVOKED"] as const;
 export type LifecycleState = (typeof LIFECYCLE_STATES)[number];
 export type DependencyRelationship = "runtime" | "governance";
 export type RegistryActor = IdentityContext;
@@ -116,11 +106,7 @@ export interface RegistryAuthorization {
 
 export interface RegistryAuditEvent {
   eventId: string;
-  eventType:
-    | "REGISTRY_MUTATION"
-    | "REGISTRY_ACCESS_DENIED"
-    | "REGISTRY_DUPLICATE_VERSION"
-    | "REGISTRY_INVALID_OPERATION";
+  eventType: "REGISTRY_MUTATION" | "REGISTRY_ACCESS_DENIED" | "REGISTRY_DUPLICATE_VERSION" | "REGISTRY_INVALID_OPERATION";
   actor: string;
   principalType: RegistryActor["principalType"];
   tenantId: string;
@@ -134,5 +120,5 @@ export interface RegistryAuditEvent {
 }
 
 export interface RegistryAuditSink {
-  append(event: RegistryAuditEvent): void;
+  append(event: RegistryAuditEvent): void | Promise<void>;
 }
