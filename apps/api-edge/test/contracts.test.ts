@@ -11,7 +11,7 @@ const schemaNames = [
 
 test("registry contracts are valid JSON schemas with stable v1 identifiers", async () => {
   for (const schemaName of schemaNames) {
-    const schema = JSON.parse(await readFile(new URL(`../../../packages/contracts/v1/${schemaName}`, import.meta.url), "utf8")) as Record<string, unknown>;
+    const schema = JSON.parse(await readFile(new URL(`../../../../packages/contracts/v1/${schemaName}`, import.meta.url), "utf8")) as Record<string, unknown>;
     assert.equal(schema["$schema"], "https://json-schema.org/draft/2020-12/schema");
     assert.equal(typeof schema["$id"], "string");
     assert.match(schema["$id"] as string, /\/contracts\/v1\//);
@@ -21,7 +21,7 @@ test("registry contracts are valid JSON schemas with stable v1 identifiers", asy
 });
 
 test("dependency contract requires exactly one version selector", async () => {
-  const schema = JSON.parse(await readFile(new URL("../../../packages/contracts/v1/dependency-reference.schema.json", import.meta.url), "utf8")) as Record<string, unknown>;
+  const schema = JSON.parse(await readFile(new URL("../../../../packages/contracts/v1/dependency-reference.schema.json", import.meta.url), "utf8")) as Record<string, unknown>;
   const allOf = schema.allOf as Array<Record<string, unknown>>;
   const oneOf = allOf[0]?.oneOf as Array<Record<string, unknown>>;
   assert.equal(oneOf.length, 2);
