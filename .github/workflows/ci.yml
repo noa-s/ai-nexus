@@ -39,6 +39,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start PostgreSQL with pgvector
         run: docker compose up -d postgres
+      - name: Wait for PostgreSQL readiness
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U ai_nexus -d ai_nexus; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready"
+          exit 1
       - name: Apply initial migration
         run: docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/001_initial_platform.sql
       - name: Verify pgvector
