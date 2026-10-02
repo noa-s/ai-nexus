@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/artifact-registry.schema.json",
+  "title": "AI Nexus v1 Artifact Registry Contract",
+  "type": "object",
+  "required": ["schemaVersion", "artifactType", "artifactId", "version", "contentDigest", "lifecycleState"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "artifactType": { "enum": ["agent", "prompt", "policy", "knowledge", "tool", "model-capability", "evaluation-suite", "platform-component"] },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "contentDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "lifecycleState": { "enum": ["DRAFT", "VALIDATING", "APPROVED", "PUBLISHED", "DEPRECATED", "ARCHIVED", "REVOKED"] },
+    "content": { "type": "object" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}
