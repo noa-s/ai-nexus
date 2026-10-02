@@ -81,6 +81,25 @@ test("signed tokens reject unsupported principal types", () => {
   assert.equal(verifySignedToken(`${encodedPayload}.${signature}`, secret, 1_700_000_000_000), null);
 });
 
+test("signed tokens reject malformed required and optional identity claims", () => {
+  const cases = [
+    { subject: 123 },
+    { tenantId: 123 },
+    { workloadId: "" },
+    { agentId: "" },
+  ];
+
+  for (const override of cases) {
+    const encodedPayload = Buffer.from(JSON.stringify({
+      ...identity,
+      ...override,
+      exp: 1_700_000_100,
+    })).toString("base64url");
+    const signature = createHmac("sha256", secret).update(encodedPayload).digest("base64url");
+    assert.equal(verifySignedToken(`${encodedPayload}.${signature}`, secret, 1_700_000_000_000), null);
+  }
+});
+
 test("authorization allows matching RBAC and policy constraints", () => {
   const result = authorize(identity, {
     requestId: "request-1",
@@ -91,6 +110,9 @@ test("authorization allows matching RBAC and policy constraints", () => {
   }, policies, "trace-1");
 
   assert.equal(result.decision, "ALLOW");
+  assert.equal(result.tenantId, "tenant-1");
+  assert.equal(result.action, "resource.read");
+  assert.equal(result.target, "protected-resource");
   assert.deepEqual(result.policyVersions, ["policy.resource-read@1"]);
   assert.equal(result.traceId, "trace-1");
 });
@@ -193,7 +215,10 @@ test("Auditor can read tenant-scoped evidence and the read is itself auditable",
     action: "resource.read",
     target: "protected-resource",
   }, policies);
-  recordAuthorizationEvent(identity, decision, store);
+  const recorded = recordAuthorizationEvent(identity, decision, store);
+  assert.equal(recorded.action, "resource.read");
+  assert.equal(recorded.target, "protected-resource");
+  assert.deepEqual(recorded.policyVersions, ["policy.resource-read@1"]);
 
   const auditor = {
     subject: "auditor-1",
