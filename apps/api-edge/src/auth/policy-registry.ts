@@ -93,6 +93,7 @@ export class InMemoryPolicyRegistry implements PolicyRegistry {
 const demoRegistry = new InMemoryPolicyRegistry([
   { name: "user", permissions: [{ action: "resource.read", target: "protected-resource" }] },
   { name: "auditor", permissions: [{ action: "evidence.read", target: "authorization-events" }] },
+  { name: "service", permissions: [{ action: "service.call", target: "service:policy-registry" }] },
 ]);
 
 demoRegistry.createVersion({
@@ -114,6 +115,28 @@ demoRegistry.assign({
   consumerType: "service",
   consumerId: "api-edge",
   policyId: "policy.resource-read",
+  policyVersion: "1",
+});
+
+demoRegistry.createVersion({
+  policyId: "policy.service-call",
+  version: "1",
+  lifecycleStatus: "ACTIVE",
+  content: [
+    {
+      id: "policy.service-call",
+      version: "1",
+      effect: "ALLOW",
+      action: "service.call",
+      target: "service:policy-registry",
+      priority: 10,
+    },
+  ],
+});
+demoRegistry.assign({
+  consumerType: "service",
+  consumerId: "api-edge",
+  policyId: "policy.service-call",
   policyVersion: "1",
 });
 
