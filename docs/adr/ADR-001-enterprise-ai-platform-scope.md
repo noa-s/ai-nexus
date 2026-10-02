@@ -1,6 +1,6 @@
 # ADR-001: Enterprise AI Platform Scope and Boundary
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
