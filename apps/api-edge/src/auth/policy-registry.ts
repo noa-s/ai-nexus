@@ -23,6 +23,7 @@ export interface PolicyAssignment {
 export interface PolicyRegistry {
   createVersion(input: Omit<PolicyVersion, "artifactType" | "createdAt">): PolicyVersion;
   getVersion(policyId: string, version: string): PolicyVersion | null;
+  transitionLifecycle(policyId: string, version: string, lifecycleStatus: PolicyLifecycleStatus): PolicyVersion;
   assign(assignment: Omit<PolicyAssignment, "assignedAt">): PolicyAssignment;
   getAssignmentHistory(consumerType: string, consumerId: string): readonly PolicyAssignment[];
   getAuthorizationPolicySet(consumerType: string, consumerId: string): AuthorizationPolicySet;
@@ -55,6 +56,15 @@ export class InMemoryPolicyRegistry implements PolicyRegistry {
 
   getVersion(policyId: string, version: string): PolicyVersion | null {
     return this.versions.get(`${policyId}@${version}`) ?? null;
+  }
+
+  transitionLifecycle(policyId: string, version: string, lifecycleStatus: PolicyLifecycleStatus): PolicyVersion {
+    const current = this.getVersion(policyId, version);
+    if (!current) throw new Error(`policy version not found: ${policyId}@${version}`);
+
+    const next: PolicyVersion = Object.freeze({ ...current, lifecycleStatus });
+    this.versions.set(`${policyId}@${version}`, next);
+    return next;
   }
 
   assign(input: Omit<PolicyAssignment, "assignedAt">): PolicyAssignment {
