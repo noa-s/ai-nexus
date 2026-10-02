@@ -25,8 +25,20 @@ const transitions: Record<LifecycleState, readonly LifecycleState[]> = {
   REVOKED: [],
 };
 
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalize(nested)]),
+    );
+  }
+  return value;
+}
+
 export function canonicalContent(value: Record<string, unknown>): string {
-  return JSON.stringify(value, Object.keys(value).sort());
+  return JSON.stringify(canonicalize(value));
 }
 
 export function contentDigest(value: Record<string, unknown>): string {
@@ -210,7 +222,7 @@ export class ArtifactAgentRegistry {
   }
 
   registerAgentVersion(input: RegisterAgentVersionInput): AgentVersion {
-    assertAuthorization(input.actor, "registry.version.create" === "registry.version.create" ? this.authorization : this.authorization, "registry.agent-version.create", `agent:${input.agentId}/${input.version}`, this.audit, {
+    assertAuthorization(input.actor, this.authorization, "registry.agent-version.create", `agent:${input.agentId}/${input.version}`, this.audit, {
       artifactType: "agent",
       artifactId: input.agentId,
       version: input.version,
