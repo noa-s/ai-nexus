@@ -1,6 +1,6 @@
 # Step 02 — Identity, Authorization & Policy Foundation
 
-- **Status:** IN PROGRESS
+- **Status:** COMPLETE
 - **Step:** 02
 - **Depends on:** Step 01
 - **Parent plan:** `docs/implementation/AI-Nexus-v1-Implementation-Plan.md`
@@ -422,28 +422,30 @@ CI MUST apply migrations 001 and 002. CI MUST verify:
 
 ## 19. Definition of Done
 
-Step 02 may become `COMPLETE` only when:
+Step 02 is `COMPLETE`:
 
-- [ ] All acceptance criteria pass.
-- [ ] Relevant ADRs were re-read during implementation and final review.
-- [ ] No accepted ADR decision was modified or silently reinterpreted.
-- [ ] Identity validation and human/workload separation are tested.
-- [ ] RBAC, tenant scope, policy evaluation, lifecycle, and assignment history are tested.
-- [ ] Service-to-service authorization is tested against explicit caller/target/action permissions.
-- [ ] Auditor human/workload evidence reads and `AUDIT_READ` are tested.
-- [ ] Downstream runtime authorization is independently exercised.
-- [ ] Authorization dependency failure is tested fail-closed.
-- [ ] Audit and policy database protections are validated in CI.
-- [ ] No secrets are committed.
-- [ ] Node CI passes.
-- [ ] Database CI passes.
-- [ ] No unrelated architecture/dependency changes are introduced.
-- [ ] PR #18 is reviewed and merged.
-- [ ] The merged implementation is verified on `staging`.
-- [ ] Completion evidence is recorded in the implementation plan.
+- [x] All acceptance criteria pass.
+- [x] Relevant ADRs were re-read during implementation and final review.
+- [x] No accepted ADR decision was modified or silently reinterpreted.
+- [x] Identity validation and human/workload separation are tested.
+- [x] RBAC, tenant scope, policy evaluation, lifecycle, and assignment history are tested.
+- [x] Service-to-service authorization is tested against explicit caller/target/action permissions.
+- [x] Auditor human/workload evidence reads and `AUDIT_READ` are tested.
+- [x] Downstream runtime authorization is independently exercised.
+- [x] Authorization dependency failure is tested fail-closed.
+- [x] Audit and policy database protections are validated in CI.
+- [x] No secrets are committed.
+- [x] Node CI passes.
+- [x] Database CI passes.
+- [x] No unrelated architecture/dependency changes are introduced.
+- [x] PR #18 is reviewed and merged.
+- [x] The merged implementation is verified on `staging`.
+- [x] Completion evidence is recorded in the implementation plan.
+
+**Completion evidence:** PR #18 was merged to `staging` at merge commit `dee4be728c2683af1c1daa1cc97f52f2fe58a5aa`. The PR's final validation passed before merge.
 
 ## 20. Exit condition
 
-Only after Step 02 is `COMPLETE` may Step 03 become `READY`.
+Step 02 is complete. Step 03 is now the active implementation step.
 
 Later runtime capabilities MUST consume the shared identity, authorization, policy, and audit interfaces established here rather than introducing parallel authorization or policy mechanisms.
