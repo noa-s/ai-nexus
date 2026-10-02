@@ -101,6 +101,11 @@ jobs:
           echo "Applying identity authorization policy migration..."
           docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/002_identity_authorization_policy.sql
           echo "Identity authorization policy migration applied."
+      - name: Apply artifact agent registry migration
+        run: |
+          echo "Applying artifact agent registry migration..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/003_artifact_agent_registry.sql
+          echo "Artifact agent registry migration applied."
       - name: Verify pgvector
         run: |
           echo "Verifying pgvector extension..."
@@ -125,25 +130,25 @@ jobs:
             exit 1
           fi
           echo "Policy version truncation was correctly rejected."
-      - name: Verify immutable audit evidence
+      - name: Verify artifact registry schema and immutability
         run: |
-          echo "Verifying immutable audit evidence..."
-          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO \"authorization\".event(event_id, event_type, tenant_id, action, target, reason_code) VALUES ('00000000-0000-0000-0000-000000000001', 'AUTHORIZATION_DENIED', 'ci-tenant', 'resource.read', 'protected-resource', 'CI_TEST') ON CONFLICT DO NOTHING;"
-          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE \"authorization\".event SET event_type = 'TAMPERED' WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
-            echo "Audit evidence mutation unexpectedly succeeded"
+          echo "Verifying artifact registry schema and immutable versions..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO registry.artifact(artifact_type, artifact_id, name, owner_id, tenant_id, lifecycle_status) VALUES ('agent', 'ci-agent', 'CI Agent', 'ci-owner', 'ci-tenant', 'DRAFT') ON CONFLICT DO NOTHING; INSERT INTO registry.artifact_version(artifact_type, artifact_id, version, content, content_digest, lifecycle_state, created_by) VALUES ('agent', 'ci-agent', '1', '{\"name\":\"ci-agent\"}', repeat('a', 64), 'DRAFT', 'ci-owner') ON CONFLICT DO NOTHING;"
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE registry.artifact_version SET content = '{\"name\":\"tampered\"}' WHERE artifact_id = 'ci-agent' AND version = '1';"; then
+            echo "Artifact version content mutation unexpectedly succeeded"
             exit 1
           fi
-          echo "Audit evidence mutation was correctly rejected."
-          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM \"authorization\".event WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
-            echo "Audit evidence deletion unexpectedly succeeded"
+          echo "Artifact version content mutation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM registry.artifact_version WHERE artifact_id = 'ci-agent' AND version = '1';"; then
+            echo "Artifact version deletion unexpectedly succeeded"
             exit 1
           fi
-          echo "Audit evidence deletion was correctly rejected."
-          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE \"authorization\".event;"; then
-            echo "Audit evidence truncation unexpectedly succeeded"
+          echo "Artifact version deletion was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE registry.artifact_version;"; then
+            echo "Artifact version truncation unexpectedly succeeded"
             exit 1
           fi
-          echo "Audit evidence truncation was correctly rejected."
+          echo "Artifact version truncation was correctly rejected."
       - name: Cleanup
         if: always()
         run: |
