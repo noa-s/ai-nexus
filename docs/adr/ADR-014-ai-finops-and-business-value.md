@@ -1,6 +1,6 @@
 # ADR-014: AI FinOps, Cost Attribution, and Business Value
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
