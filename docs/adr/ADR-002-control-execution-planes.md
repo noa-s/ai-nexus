@@ -1,6 +1,6 @@
 # ADR-002: Control Plane vs Execution Plane with Shared Capabilities
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context

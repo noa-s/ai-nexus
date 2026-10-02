@@ -1,6 +1,6 @@
 # ADR-003: Immutable Versioned Artifacts and Automated Dependency Graph
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context

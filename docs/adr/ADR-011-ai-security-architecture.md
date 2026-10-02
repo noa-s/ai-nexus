@@ -1,6 +1,6 @@
 # ADR-011: AI Security Architecture and Threat Controls
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context

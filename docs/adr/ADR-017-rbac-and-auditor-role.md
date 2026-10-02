@@ -1,6 +1,6 @@
 # ADR-017: RBAC and the Auditor Role
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-004: Modular, Microservice-Ready Architecture
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-015: Governed AI Marketplace and Conversational Discovery
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
