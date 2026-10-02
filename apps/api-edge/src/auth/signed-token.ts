@@ -25,14 +25,18 @@ export function verifySignedToken(token: string, secret: string, now = Date.now(
     const payload = JSON.parse(decode(encodedPayload)) as TokenPayload;
     if (!payload.subject || !payload.tenantId || !payload.principalType || !Array.isArray(payload.roles)) return null;
     if (payload.exp * 1000 <= now) return null;
-    return {
+
+    const identity: IdentityContext = {
       subject: payload.subject,
       principalType: payload.principalType,
       tenantId: payload.tenantId,
       roles: payload.roles,
-      workloadId: payload.workloadId,
-      agentId: payload.agentId,
     };
+
+    if (payload.workloadId !== undefined) identity.workloadId = payload.workloadId;
+    if (payload.agentId !== undefined) identity.agentId = payload.agentId;
+
+    return identity;
   } catch {
     return null;
   }
