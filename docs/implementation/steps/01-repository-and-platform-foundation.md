@@ -1,10 +1,11 @@
 # Step 01 — Repository & Platform Foundation
 
-- **Status:** READY
+- **Status:** COMPLETE
 - **Step:** 01
 - **Depends on:** None
 - **Parent plan:** `docs/implementation/AI-Nexus-v1-Implementation-Plan.md`
 - **Discovery:** `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md`
+- **Completion evidence:** PR #16 merged to `staging`; final CI run for commit `12b23afa2a28279bd017ba612f5628c853071ef2` passed (workflow run `36967666739`).
 
 ## 1. Purpose
 
@@ -155,19 +156,19 @@ If a required check cannot be run, record the reason rather than claiming full v
 
 Step 01 may be marked `COMPLETE` only when all of the following are true:
 
-- [ ] All Step 01 acceptance criteria pass.
-- [ ] The implementation is covered by appropriate automated tests.
-- [ ] Node.js and Python foundations are independently buildable/testable.
-- [ ] PostgreSQL + pgvector foundation is reproducible.
-- [ ] Database ownership/migration conventions are documented.
-- [ ] Configuration and secret boundaries are verified.
-- [ ] Baseline CI passes.
-- [ ] No unrelated architecture or dependency changes were introduced.
-- [ ] Relevant ADRs were re-read during implementation and no decision was silently changed.
-- [ ] The Step 01 PR is reviewed and merged.
-- [ ] The merged implementation is verified on `staging`.
-- [ ] Completion evidence is recorded in the implementation plan/step record.
+- [x] All Step 01 acceptance criteria pass.
+- [x] The implementation is covered by appropriate automated tests.
+- [x] Node.js and Python foundations are independently buildable/testable.
+- [x] PostgreSQL + pgvector foundation is reproducible.
+- [x] Database ownership/migration conventions are documented.
+- [x] Configuration and secret boundaries are verified.
+- [x] Baseline CI passes.
+- [x] No unrelated architecture or dependency changes were introduced.
+- [x] Relevant ADRs were re-read during implementation and no decision was silently changed.
+- [x] The Step 01 PR is reviewed and merged.
+- [x] The merged implementation is verified on `staging`.
+- [x] Completion evidence is recorded in the implementation plan/step record.
 
 ## 11. Exit condition
 
-When Step 01 is complete, Step 02 may become `READY`. No later implementation step may be treated as active merely because its design or code can be prepared in parallel; execution remains one controlled step at a time.
+Step 01 is complete. Step 02 is now the only implementation step eligible to become active under the implementation plan's one-step-at-a-time rule.
