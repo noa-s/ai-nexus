@@ -1,6 +1,6 @@
 # ADR-005: Polyglot TypeScript/Node.js and Python Runtime Strategy
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
