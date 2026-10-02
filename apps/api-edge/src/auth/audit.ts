@@ -8,6 +8,7 @@ export interface AuthorizationAuditEvent {
   eventType: "AUTHORIZATION_DECISION" | "AUTHORIZATION_DENIED" | "AUDIT_READ";
   principalId?: string;
   workloadId?: string;
+  agentId?: string;
   tenantId: string;
   action: string;
   target: string;
@@ -45,6 +46,7 @@ const toEvent = (identity: IdentityContext, result: AuthorizationResult): Author
   eventType: result.decision === "DENY" ? "AUTHORIZATION_DENIED" : "AUTHORIZATION_DECISION",
   principalId: identity.principalType === "human" ? identity.subject : undefined,
   workloadId: identity.workloadId ?? (identity.principalType === "workload" ? identity.subject : undefined),
+  agentId: identity.agentId,
   tenantId: identity.tenantId,
   action: result.action,
   target: result.target,
@@ -90,6 +92,7 @@ export function readAuthorizationEvents(
     eventType: "AUDIT_READ",
     principalId: identity.principalType === "human" ? identity.subject : undefined,
     workloadId: identity.workloadId ?? (identity.principalType === "workload" ? identity.subject : undefined),
+    agentId: identity.agentId,
     tenantId: identity.tenantId,
     action: "evidence.read",
     target: "authorization-events",
