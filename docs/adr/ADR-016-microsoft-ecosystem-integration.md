@@ -1,6 +1,6 @@
 # ADR-016: Microsoft Ecosystem Integration and Copilot Studio Gateway Boundary
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
