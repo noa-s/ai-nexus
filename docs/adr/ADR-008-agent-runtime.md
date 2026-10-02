@@ -1,6 +1,6 @@
 # ADR-008: Explicit Agent Runtime Separation and Governed Execution
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
