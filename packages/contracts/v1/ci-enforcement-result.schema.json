@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/ci-enforcement-result.schema.json",
+  "title": "CIEnforcementResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["repository", "candidateRevision", "passed", "blockingFindings"],
+  "properties": {
+    "repository": { "type": "string", "minLength": 1 },
+    "baseRevision": { "type": "string", "minLength": 1 },
+    "candidateRevision": { "type": "string", "minLength": 1 },
+    "snapshotId": { "type": "string", "minLength": 1 },
+    "passed": { "type": "boolean" },
+    "blockingFindings": { "type": "integer", "minimum": 0 },
+    "totalFindings": { "type": "integer", "minimum": 0 }
+  }
+}
