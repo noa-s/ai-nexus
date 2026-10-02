@@ -5,7 +5,7 @@
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 - **Requirements baseline:** `docs/architecture/AI-Nexus-v1-Requirements-and-Architecture-Specification.md` v0.7
-- **Discovery baseline:** `AI-Nexus-v1-Repository-and-Architecture-Discovery.md` v0.1
+- **Discovery baseline:** `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md` v0.2
 
 ## 1. Purpose
 
@@ -118,7 +118,7 @@ The following is the **initial v1 execution order** derived from the accepted AD
 
 - Dependencies: none
 - Detailed plan: `steps/01-repository-and-platform-foundation.md`
-- Discovery: `AI-Nexus-v1-Repository-and-Architecture-Discovery.md`
+- Discovery: `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md`
 - Completion evidence: PR #16 merged to `staging`; final CI run for commit `12b23afa2a28279bd017ba612f5628c853071ef2` passed (workflow run `36967666739`).
 - Covers: monorepo/service-module structure, Node.js/TypeScript and Python foundations, shared language-neutral contracts, PostgreSQL + pgvector foundation, configuration, service identity foundations, container development support, and CI baseline.
 
