@@ -1,6 +1,6 @@
 # ADR-012: Pre-Production and Production AI Evaluation
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
