@@ -3,22 +3,29 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [staging, main]
+    branches: [staging, master]
 
 jobs:
   node-foundation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npm run typecheck --workspace @ai-nexus/api-edge
-      - run: npm run build --workspace @ai-nexus/api-edge
-      - run: npm test --workspace @ai-nexus/api-edge
+      - name: Build and start Node API container
+        run: docker compose build api-edge && docker compose up -d postgres api-edge
+      - name: Wait for API readiness
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3000/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API Edge did not become ready"
+          docker compose logs api-edge
+          exit 1
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
 
   python-foundation:
     runs-on: ubuntu-latest
@@ -32,6 +39,9 @@ jobs:
           python-version: "3.11"
       - run: python -m compileall -q src tests
       - run: PYTHONPATH=src python -m unittest discover -s tests
+      - name: Cleanup Docker resources if present
+        if: always()
+        run: docker compose down -v
 
   database-foundation:
     runs-on: ubuntu-latest
