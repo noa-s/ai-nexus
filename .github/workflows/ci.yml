@@ -41,7 +41,7 @@ jobs:
       - run: PYTHONPATH=src python -m unittest discover -s tests
       - name: Cleanup Docker resources if present
         if: always()
-        run: docker compose down -v
+        run: docker compose -f ../../docker-compose.yml down -v
 
   database-foundation:
     runs-on: ubuntu-latest
