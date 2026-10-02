@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/impact-query.schema.json",
+  "title": "ImpactQuery",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["repository", "root"],
+  "properties": {
+    "repository": { "type": "string", "minLength": 1 },
+    "snapshotId": { "type": "string", "minLength": 1 },
+    "root": { "$ref": "dependency-node.schema.json" }
+  }
+}

@@ -1,8 +1,8 @@
 # AI Nexus v1 — Implementation Plan
 
-- **Status:** Draft — Stage 4.2 — Step 03 In Progress
-- **Version:** 0.4
-- **Date:** 2026-10-02
+- **Status:** Draft — Stage 4.2 — Step 04 In Progress
+- **Version:** 0.5
+- **Date:** 2026-10-03
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 - **Requirements baseline:** `docs/architecture/AI-Nexus-v1-Requirements-and-Architecture-Specification.md` v0.7
 - **Discovery baseline:** `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md` v0.2
@@ -128,21 +128,23 @@ The following is the **initial v1 execution order** derived from the accepted AD
 
 - Depends on: Step 01
 - Detailed plan: `steps/02-identity-authorization-and-policy-foundation.md`
-- Completion evidence: PR #18 merged to `staging` at merge commit `dee4be728c2683af1c1daa1cc97f52f2fe58a5aa`; PR validation passed before merge.
+- Completion evidence: PR #18 merged to `staging` at merge commit `dee4be728c2683af1cdaa1cc97f52f2fe58a5aa`; PR validation passed before merge.
 - Establishes the shared authorization/policy boundary, workload/service identity authorization, immutable policy foundation, Auditor role boundary, protected service-to-service communication, and the initial language-neutral authorization contracts before protected runtime capabilities.
 
-**Step 03 — Artifact, Agent & Version Registry** — `IN PROGRESS`
+**Step 03 — Artifact, Agent & Version Registry** — `COMPLETE`
 
 - Depends on: Step 02
 - Detailed plan: `steps/03-artifact-agent-and-version-registry.md`
-- Current branch: `impl/step-03-artifact-agent-version-registry`
+- Completion evidence: PR #21 merged to `staging` at merge commit `10b8d64c1a3ae3691822ca3014112a5729dd5ff1`; post-merge staging CI run `37046707701` passed all jobs, including Node build/tests, Python foundation checks, PostgreSQL registry migration/immutability checks, and repository safety.
 - Establishes the authoritative Artifact/Agent Registry, immutable version identity, Agent registration/versioning, lifecycle metadata, exact policy-version references, declared dependency-reference contracts, scoped registry authorization, and registry audit behavior.
 - Explicitly does not implement the Dependency Analyzer, Model Registry, Agent Runtime, LLM Gateway, RAG Runtime, Tool/MCP Runtime, or Marketplace.
 
-**Step 04 — Dependency Analyzer & Impact Graph**
+**Step 04 — Dependency Analyzer & Impact Graph** — `IN PROGRESS`
 
 - Depends on: Step 03
-- Implements deterministic repository scanning, version/dependency evidence, direct/transitive impact analysis, and PR/CI enforcement.
+- Detailed plan: `steps/04-dependency-analyzer-and-impact-graph.md`
+- Current branch: `impl/step-04-dependency-analyzer-impact-graph`
+- Implements deterministic repository scanning, version/dependency evidence, direct/transitive impact analysis, graph persistence, changed-artifact validation, and PR/CI enforcement.
 
 **Step 05 — Model Registry**
 
@@ -235,8 +237,8 @@ Stage 4 is complete only when:
 
 ## 9. Current implementation baseline
 
-Steps 01 and 02 are complete and merged to `staging`. Step 03 is now the current controlled implementation step. Its detailed execution contract is defined in `steps/03-artifact-agent-and-version-registry.md`.
+Steps 01, 02, and 03 are complete and merged to `staging`. Step 04 is now the current controlled implementation step. Its detailed execution contract is defined in `steps/04-dependency-analyzer-and-impact-graph.md`.
 
 ## 10. Current controlled action
 
-**Step 03 is IN PROGRESS.** Implementation must remain within the Step 03 scope and Definition of Done. No Step 04 or Step 05 work may begin until Step 03 is complete and verified on `staging`.
+**Step 04 is IN PROGRESS.** Implementation must remain within the Step 04 scope and Definition of Done. No Step 05 or later step work may begin until Step 04 is complete and verified on `staging`.

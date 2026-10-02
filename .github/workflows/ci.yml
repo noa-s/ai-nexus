@@ -6,6 +6,29 @@ on:
     branches: [staging, master]
 
 jobs:
+  dependency-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Run dependency analyzer
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            npm run dependency:check --workspace @ai-nexus/api-edge -- --head "$HEAD_SHA" --repository "noa-s/ai-nexus"
+          else
+            npm run dependency:check --workspace @ai-nexus/api-edge -- --base "$BASE_SHA" --head "$HEAD_SHA" --repository "noa-s/ai-nexus"
+          fi
+
   node-foundation:
     runs-on: ubuntu-latest
     steps:
@@ -69,7 +92,7 @@ jobs:
         run: |
           echo "Cleaning up Python worker resources..."
           docker compose down -v
-          echo "Python worker cleanup completed."
+          echo "Python cleanup completed."
 
   database-foundation:
     runs-on: ubuntu-latest
@@ -106,6 +129,11 @@ jobs:
           echo "Applying artifact and agent registry migration..."
           docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/003_artifact_agent_registry.sql
           echo "Artifact and agent registry migration applied."
+      - name: Apply dependency graph migration
+        run: |
+          echo "Applying dependency graph migration..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/004_dependency_graph.sql
+          echo "Dependency graph migration applied."
       - name: Verify pgvector
         run: |
           echo "Verifying pgvector extension..."

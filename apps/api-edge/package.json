@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": {"build":"tsc -p tsconfig.json","typecheck":"tsc -p tsconfig.json --noEmit","test":"NODE_ENV=test node --test dist/test/*.test.js","lint":"tsc -p tsconfig.json --noEmit"},
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "NODE_ENV=test node --test dist/test/*.test.js",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "dependency:check": "npm run build && node dist/src/dependency/cli.js"
+  },
   "devDependencies": {"@types/node":"22.15.30","typescript":"5.9.2"}
 }
