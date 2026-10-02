@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/registry-operation.schema.json",
+  "title": "AI Nexus v1 Registry Operation Contract",
+  "type": "object",
+  "required": ["schemaVersion", "operation", "artifactType", "artifactId"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "operation": { "enum": ["CREATE_ARTIFACT", "CREATE_VERSION", "GET_ARTIFACT", "GET_VERSION", "LIST_VERSIONS", "TRANSITION_LIFECYCLE", "REGISTER_AGENT", "CREATE_AGENT_VERSION", "GET_AGENT_VERSION", "RESOLVE_VERSION"] },
+    "artifactType": { "type": "string", "minLength": 1 },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "lifecycleState": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false
+}
