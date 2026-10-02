@@ -1,10 +1,7 @@
 FROM node:22.20.0-bookworm-slim
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY apps/*/package.json ./apps/
-COPY apps/api-edge/tsconfig.json ./apps/api-edge/
-COPY apps/api-edge/src ./apps/api-edge/src
-COPY apps/api-edge/test ./apps/api-edge/test
+COPY apps/ ./apps/
 RUN npm i --ignore-scripts
 RUN npm run build --workspace @ai-nexus/api-edge
 EXPOSE 3000
