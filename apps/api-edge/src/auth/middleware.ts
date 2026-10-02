@@ -1,18 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { authorize, type AuthorizationPolicySet } from "./authorization.js";
-import { recordAuthorizationEvent } from "./audit.js";
+import { auditEventStore, recordAuthorizationEvent, type AuditEventStore } from "./audit.js";
+import { demoPolicyRegistry, type PolicyRegistry } from "./policy-registry.js";
 import { verifySignedToken } from "./signed-token.js";
 import type { AuthorizationRequest, IdentityContext } from "./types.js";
 
-export const demoPolicySet: AuthorizationPolicySet = {
-  roles: [
-    { name: "user", permissions: [{ action: "resource.read", target: "protected-resource" }] },
-    { name: "auditor", permissions: [{ action: "evidence.read", target: "*" }] },
-    { name: "service", permissions: [{ action: "service.call", target: "*" }] },
-  ],
-  policies: [],
-};
+export type PolicySetProvider = () => AuthorizationPolicySet;
+
+export const demoPolicyProvider: PolicySetProvider = () =>
+  demoPolicyRegistry.getAuthorizationPolicySet("service", "api-edge");
 
 export function authenticate(headers: IncomingHttpHeaders, secret: string): IdentityContext | null {
   const header = headers.authorization;
@@ -25,7 +22,8 @@ export function requireAuthorization(
   response: ServerResponse,
   action: string,
   target: string,
-  policySet = demoPolicySet,
+  policyProvider: PolicySetProvider = demoPolicyProvider,
+  auditStore: AuditEventStore = auditEventStore,
 ): boolean {
   const secret = process.env.AUTH_TOKEN_SECRET ?? "";
   const identity = authenticate(request.headers, secret);
@@ -35,6 +33,15 @@ export function requireAuthorization(
   if (!identity) {
     response.writeHead(401, { "content-type": "application/json", "x-request-id": requestId });
     response.end(JSON.stringify({ error: "unauthenticated", requestId }));
+    return false;
+  }
+
+  let policySet: AuthorizationPolicySet;
+  try {
+    policySet = policyProvider();
+  } catch {
+    response.writeHead(503, { "content-type": "application/json", "x-request-id": requestId });
+    response.end(JSON.stringify({ error: "authorization_unavailable", requestId }));
     return false;
   }
 
@@ -50,7 +57,7 @@ export function requireAuthorization(
   };
 
   const result = authorize(identity, authorizationRequest, policySet, traceId);
-  recordAuthorizationEvent(identity, result);
+  recordAuthorizationEvent(identity, result, auditStore);
 
   if (result.decision !== "ALLOW") {
     response.writeHead(403, { "content-type": "application/json", "x-request-id": requestId });
@@ -60,3 +67,5 @@ export function requireAuthorization(
 
   return true;
 }
+
+export const policyRegistry: PolicyRegistry = demoPolicyRegistry;
