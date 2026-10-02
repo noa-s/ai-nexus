@@ -1,7 +1,7 @@
 # AI Nexus v1 — Requirements & Architecture Specification
 
-- **Status:** Draft — Stage 3B.4
-- **Version:** 0.4
+- **Status:** Draft — Stage 3B.5
+- **Version:** 0.5
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 
@@ -685,8 +685,241 @@ Requirement → ADR → Specification contract/component → Acceptance criterio
 
 When an accepted ADR changes, affected requirements, interfaces, data contracts, runtime behavior, acceptance criteria, and implementation plans MUST be reviewed. The specification changes only where the accepted decision affects concrete v1 behavior.
 
+# 22. AI Marketplace Integration
+
+The Marketplace is a governed discovery and lifecycle surface, not an execution engine and not an authorization substitute.
+
+## 22.1 Publication lifecycle
+
+A v1 Marketplace entry MUST reference a governed artifact/version and expose enough metadata for discovery, compatibility review, ownership, lifecycle state, and access requirements.
+
+The publication lifecycle is:
+
+```text
+Draft
+  ↓
+Evaluation / validation
+  ↓
+Published
+  ↓
+Access request
+  ↓
+Approval / authorization
+  ↓
+Governed execution
+  ↓
+Deprecated / retired
+```
+
+Publication MUST NOT imply that every user may execute the artifact. Access remains subject to identity, RBAC, immutable policy, and runtime authorization.
+
+## 22.2 Discovery contract
+
+Marketplace discovery SHOULD return:
+
+- artifact identity and immutable version;
+- owner/team;
+- purpose and supported capabilities;
+- lifecycle/publication state;
+- required roles/capabilities;
+- evaluation evidence references;
+- supported integrations/tools;
+- relevant data-access classification;
+- dependency/version references where useful.
+
+Conversational or semantic discovery MAY recommend entries, but recommendation MUST NOT create an authorization grant.
+
+## 22.3 Marketplace governance
+
+Marketplace state changes MUST be auditable and version-aware. Removal, deprecation, or replacement MUST preserve historical references needed to interpret prior executions.
+
+**Basis:** ADR-015.
+
+# 23. MCP / Tool Integration
+
+MCP is treated as an integration protocol within the governed Tool/MCP Runtime rather than as a bypass around AI Nexus controls.
+
+## 23.1 Tool registration contract
+
+Every externally reachable MCP/tool capability MUST have a registered identity and version. Registration MUST capture at minimum:
+
+- tool/server identity;
+- version;
+- capability metadata;
+- input/output schema;
+- owning team/service identity;
+- authorization requirements;
+- data-access classification;
+- network/integration boundary;
+- credential mechanism;
+- lifecycle status.
+
+Unregistered or disabled tools MUST NOT be available to governed Agent execution.
+
+## 23.2 Invocation contract
+
+```text
+Agent intent/proposal
+       ↓
+Resolve registered tool/version
+       ↓
+Validate input contract
+       ↓
+AI Nexus authorization + policy
+       ↓
+Approval when required
+       ↓
+Inject scoped credentials at execution boundary
+       ↓
+Invoke MCP/tool
+       ↓
+Validate result
+       ↓
+Record causal + audit evidence
+```
+
+The model MUST NOT be given unrestricted network access or raw service credentials merely because an MCP server is registered.
+
+## 23.3 External MCP boundaries
+
+External MCP servers MUST be treated as untrusted integration boundaries unless explicitly classified otherwise by policy. Network location, tool identity, version, authentication method, and allowed data/action scope MUST be available to the authorization layer.
+
+Tool outputs MUST be treated as untrusted content before they are used for subsequent planning or actions.
+
+## 23.4 Lifecycle and dependency impact
+
+Tool/MCP versions participate in artifact and dependency tracking when they materially affect an Agent execution. Changing a registered tool contract MUST be capable of producing dependency impact evidence and, where policy requires, an evaluation/release gate.
+
+**Basis:** ADR-008, ADR-011, ADR-013, ADR-003.
+
+# 24. Microsoft / Copilot Studio Integration
+
+AI Nexus exposes Microsoft integration through the approved external API/Edge boundary. Copilot Studio MUST NOT connect directly to internal runtime services.
+
+## 24.1 Integration path
+
+```text
+Copilot Studio
+      ↓
+Authenticated custom connector / external API
+      ↓
+AI Nexus API / Edge Boundary
+      ↓
+AI Nexus identity mapping
+      ↓
+RBAC + policy authorization
+      ↓
+Governed Agent / runtime execution
+      ↓
+Response
+```
+
+The connector contract MUST be versioned and MUST expose only operations intended for external consumers. Internal service endpoints MUST NOT be treated as public integration contracts.
+
+## 24.2 Identity and authorization
+
+Microsoft authentication establishes an authenticated integration context but does not by itself grant AI Nexus access. AI Nexus MUST map the integration context to an AI Nexus subject/service identity and apply its own authorization and policy controls.
+
+The identity mapping and authorization outcome MUST be represented in the causal execution record.
+
+## 24.3 Organization-wide enforcement boundary
+
+The AI Nexus application can enforce governance on requests that traverse the AI Nexus boundary. It MUST NOT claim that it can universally intercept or govern every Copilot Studio or Microsoft AI interaction in an organization solely through the application.
+
+Organization-wide enforcement requires applicable Microsoft tenant/organizational controls in addition to AI Nexus controls. The specification therefore distinguishes:
+
+1. **Integration:** connecting Copilot Studio to AI Nexus.
+2. **AI Nexus governance:** enforcing AI Nexus policies on requests that enter AI Nexus.
+3. **Organization-wide enforcement:** preventing or controlling alternate Microsoft AI paths using the appropriate Microsoft administrative/tenant controls.
+
+## 24.4 External contract requirements
+
+The Copilot-facing API MUST define:
+
+- supported operations;
+- authentication mechanism;
+- request/response schema;
+- timeout/error semantics;
+- correlation identifier propagation;
+- authorization behavior;
+- rate/budget controls where applicable;
+- API versioning/deprecation behavior.
+
+**Basis:** ADR-016.
+
+# 25. Secure Node.js / Python Service-to-Service Communication
+
+Polyglot execution does not create a separate trust domain that bypasses AI Nexus governance.
+
+## 25.1 Service identity
+
+Every independently communicating runtime service MUST have a distinct service identity appropriate to its deployment environment. Service identity MUST be available to authorization and audit mechanisms.
+
+A service identity MUST represent the service, not impersonate an end user without an explicit delegated-identity contract.
+
+## 25.2 Communication contract
+
+Node.js and Python services MUST communicate through versioned, language-neutral contracts. v1 synchronous calls SHOULD use authenticated HTTPS/HTTP APIs; durable asynchronous work MAY use a governed queue/event contract where appropriate.
+
+Each service-to-service request MUST propagate, where applicable:
+
+- correlation/execution ID;
+- calling service identity;
+- delegated user/actor identity when authorized;
+- artifact/version context;
+- policy context/reference;
+- request schema version;
+- timeout/deadline information.
+
+## 25.3 Service authorization
+
+Authentication alone is insufficient. A receiving service MUST authorize the requested operation based on service identity, action, resource, policy, and delegated context where applicable.
+
+A Python worker MUST NOT call a provider directly when the operation is a governed LLM action; it MUST use the LLM Gateway contract. Similarly, a worker MUST NOT directly mutate another domain's owned data as an alternative to its service contract.
+
+## 25.4 Credential and secret handling
+
+Service credentials MUST be provisioned through the deployment/security mechanism defined by the environment and MUST NOT be embedded in source, artifact metadata, model prompts, or ordinary logs.
+
+Short-lived or narrowly scoped credentials SHOULD be preferred where supported. Credential material MUST NOT cross service boundaries unless the receiving service is explicitly the authorized execution boundary.
+
+## 25.5 Failure and trust behavior
+
+Service-to-service failures MUST be observable and bounded. Retries MUST respect idempotency and deadlines. Authentication or authorization failure MUST NOT be converted into an anonymous or lower-control execution path.
+
+**Basis:** ADR-005, ADR-011, ADR-017, ADR-018.
+
+# 26. Stage 3B.5 Acceptance Criteria
+
+- **AC-MKT-001:** Marketplace entries reference immutable governed artifact versions and publication state.
+- **AC-MKT-002:** Marketplace discovery cannot itself grant execution authorization.
+- **AC-MCP-001:** Every executable MCP/tool capability has a registered identity, version, contract, owner, and authorization metadata.
+- **AC-MCP-002:** Tool execution follows the governed proposal → authorization → approval-if-required → execution lifecycle.
+- **AC-MCP-003:** External MCP/tool outputs and tool locations are treated as untrusted unless explicitly governed otherwise.
+- **AC-MCP-004:** Material tool version changes can participate in dependency impact and evaluation/release decisions.
+- **AC-MS-001:** Copilot Studio reaches AI Nexus only through the approved external API/Edge boundary.
+- **AC-MS-002:** Microsoft authentication is mapped into an AI Nexus identity and does not bypass AI Nexus authorization.
+- **AC-MS-003:** The specification explicitly distinguishes AI Nexus integration/governance from organization-wide Microsoft enforcement.
+- **AC-MS-004:** The Copilot-facing contract is versioned and has defined authentication, errors, correlation, authorization, and lifecycle behavior.
+- **AC-S2S-001:** Independently communicating Node.js/Python services have authenticated service identities.
+- **AC-S2S-002:** Service-to-service calls use versioned language-neutral contracts and preserve correlation/context.
+- **AC-S2S-003:** Service authentication and authorization are separate controls.
+- **AC-S2S-004:** Python workers cannot create an uncontrolled LLM path or bypass domain ownership.
+- **AC-S2S-005:** Service credential failures cannot silently downgrade into uncontrolled execution.
+- **AC-INT-001:** Marketplace, MCP, Microsoft integration, and service-to-service contracts remain within the single authoritative specification and reference the accepted ADRs rather than duplicating ADR authority.
+
+# 27. Traceability and Change Management
+
+Traceability follows:
+
+```text
+Requirement → ADR → Specification contract/component → Acceptance criterion → Implementation test
+```
+
+When an accepted ADR changes, affected requirements, interfaces, data contracts, runtime behavior, acceptance criteria, and implementation plans MUST be reviewed. The specification changes only where the accepted decision affects concrete v1 behavior.
+
 ## Current Stage
 
-**Stage 3B.4 — Governance + Security + Evaluation + Causal Observability + AI FinOps/Business Value.**
+**Stage 3B.5 — Enterprise Integrations: Marketplace + MCP/Tools + Microsoft/Copilot Studio + secure Node.js/Python service-to-service communication.**
 
 No application implementation should begin until the v1 specification is sufficiently defined and reviewed.
