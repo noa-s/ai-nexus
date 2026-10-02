@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/registry-operation.schema.json",
+  "title": "RegistryOperation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operation", "artifactType", "artifactId"],
+  "properties": {
+    "operation": { "type": "string", "enum": ["create-artifact", "create-version", "get-artifact", "get-version", "list-versions", "transition-lifecycle", "create-agent", "create-agent-version", "get-agent-version", "list-agent-versions", "resolve-version"] },
+    "artifactType": { "type": "string", "minLength": 1 },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "lifecycleStatus": { "type": "string", "enum": ["DRAFT", "VALIDATING", "APPROVED", "PUBLISHED", "DEPRECATED", "ARCHIVED", "REVOKED"] },
+    "payload": { "type": "object" }
+  }
+}
