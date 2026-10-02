@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS dependency.analyzer_finding (
   message TEXT NOT NULL,
   repository_path TEXT,
   line INTEGER,
-  column INTEGER,
+  column_number INTEGER,
   artifact JSONB,
   dependency JSONB
 );
