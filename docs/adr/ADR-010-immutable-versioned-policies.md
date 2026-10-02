@@ -1,6 +1,6 @@
 # ADR-010: Policies as Immutable Versioned Governance Artifacts
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
