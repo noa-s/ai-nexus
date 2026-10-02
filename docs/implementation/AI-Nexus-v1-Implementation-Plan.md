@@ -124,7 +124,7 @@ The following is the **initial v1 execution order** derived from the accepted AD
 **Step 02 — Identity, Authorization & Policy Foundation**
 
 - Depends on: Step 01
-- Establishes the shared authorization/policy boundary before protected runtime capabilities.
+- Establishes the shared authorization/policy boundary, workload/service identity authorization, and protected service-to-service communication before protected runtime capabilities.
 
 **Step 03 — Artifact, Agent & Version Registry**
 
@@ -187,10 +187,10 @@ The following is the **initial v1 execution order** derived from the accepted AD
 - Depends on: Steps 03, 04, 08, 11, 12
 - Implements governed publication, Agent Cards, catalog/conversational discovery, access workflows, and version-aware trust/economic signals.
 
-**Step 14 — MCP Ecosystem, Copilot Studio & Secure Polyglot Integration**
+**Step 14 — MCP Ecosystem & Copilot Studio Integration**
 
 - Depends on: Steps 02, 06, 07, 08, 10, 13
-- Completes external MCP integration boundaries, the v1 Copilot Studio custom connector/API path, Microsoft identity mapping, and authenticated Node.js/Python service-to-service contracts.
+- Completes external MCP integration boundaries, the v1 Copilot Studio custom connector/API path, Microsoft identity mapping, and external integration contracts. Secure polyglot service-to-service communication is established earlier in Step 02 and consumed here rather than deferred to the integration phase.
 
 ### Phase 6 — Production engineering
 
