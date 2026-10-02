@@ -13,7 +13,6 @@ const otherTenantActor: RegistryActor = { subject: "service-other", principalTyp
 const allow = (identity: RegistryActor, action: string, target: string): AuthorizationResult => ({ decisionId: `decision-${action}`, decision: "ALLOW", reasonCode: "TEST_ALLOWED", requestId: identity.requestId ?? "test-request", tenantId: identity.tenantId, workload: identity.workloadId, agent: identity.agentId, action, target, policyVersions: ["policy.registry@1"], evaluatedAt: new Date().toISOString(), traceId: identity.traceId });
 const deny = (_identity: RegistryActor, action: string, target: string): AuthorizationResult => ({ decisionId: `decision-${action}`, decision: "DENY", reasonCode: "POLICY_DENIED", requestId: "test-request", tenantId: "tenant-a", action, target, policyVersions: ["policy.registry@1"], evaluatedAt: new Date().toISOString() });
 const createRegistry = (authorizer = allow) => new ArtifactAgentRegistry({ policyRegistry, authorize: authorizer, auditSink: new InMemoryRegistryAuditSink() });
-
 const agentInput = { artifactId: "maintenance-agent", name: "Maintenance Agent", description: "Performs maintenance workflows", ownerId: "owner-a", tenantId: "tenant-a", businessUnit: "operations", lifecycleStatus: "DRAFT" as const, riskClassification: "medium", dataClassification: "internal" };
 const declaration: ArtifactDeclaration = {
   schemaVersion: "1", artifactType: "agent", artifactId: "maintenance-agent", version: "1", agentId: "maintenance-agent", declaredCapabilities: ["maintenance"], declaredTasks: ["diagnose"],
@@ -22,10 +21,20 @@ const declaration: ArtifactDeclaration = {
 };
 
 test("registers an agent and immutable version with deterministic digest", () => {
-  const registry = createRegistry(); registry.registerAgent(actor, agentInput);
-  const version = registry.createAgentVersion(actor, declaration, { enabled: true, name: "maintenance" });
-  assert.equal(version.artifactType, "agent"); assert.equal(version.agentId, "maintenance-agent"); assert.equal(version.version, "1"); assert.match(version.contentDigest, /^[a-f0-9]{64}$/); assert.equal(version.policyReferences[0]?.policyVersion, "1");
+  const registry = createRegistry(); registry.registerAgent(actor, agentInput); const version = registry.createAgentVersion(actor, declaration, { enabled: true, name: "maintenance" });
+  assert.equal(version.artifactType, "agent"); assert.equal(version.agentId, "maintenance-agent"); assert.equal(version.version, "1"); assert.match(version.contentDigest, /^[a-f0-9]{64}$/); assert.equal(version.policyReferences[0]?.policyVersion, "1"); assert.equal(version.governanceStatus, "PENDING");
   const returned = registry.getAgentVersion(actor, "maintenance-agent", "1"); returned.content.name = "changed locally"; assert.equal(registry.getAgentVersion(actor, "maintenance-agent", "1").content.name, "maintenance");
+});
+
+test("exposes exact version, list, policy/dependency references, and governed eligibility", () => {
+  const registry = createRegistry(); registry.registerAgent(actor, agentInput); registry.createAgentVersion(actor, declaration, { enabled: true });
+  assert.equal(registry.getArtifact(actor, "agent", "maintenance-agent").artifactId, "maintenance-agent");
+  assert.equal(registry.listVersions(actor, "agent", "maintenance-agent").length, 1);
+  assert.equal(registry.resolveVersion(actor, "agent", "maintenance-agent", "1").version, "1");
+  assert.equal(registry.getPolicyReferences(actor, "maintenance-agent", "1")[0]?.policyId, "policy.agent-runtime");
+  assert.equal(registry.getDependencies(actor, "maintenance-agent", "1")[0]?.targetArtifactId, "diagnostics");
+  registry.transitionLifecycle(actor, "agent", "maintenance-agent", "1", "VALIDATING"); registry.transitionLifecycle(actor, "agent", "maintenance-agent", "1", "APPROVED");
+  assert.equal(registry.getGovernanceStatus(actor, "maintenance-agent", "1"), "ELIGIBLE");
 });
 
 test("rejects duplicate immutable versions", () => {
@@ -41,22 +50,18 @@ test("rejects invalid lifecycle transitions while allowing lifecycle-only mutati
 });
 
 test("enforces tenant isolation and audits rejected access", () => {
-  const audit = new InMemoryRegistryAuditSink(); const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: allow, auditSink: audit });
-  registry.registerAgent(actor, agentInput); registry.createAgentVersion(actor, declaration, { enabled: true });
-  assert.throws(() => registry.getAgentVersion(otherTenantActor, "maintenance-agent", "1"), /VERSION_NOT_FOUND/);
-  assert.equal(audit.list("tenant-b").at(-1)?.eventType, "REGISTRY_REJECTED");
+  const audit = new InMemoryRegistryAuditSink(); const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: allow, auditSink: audit }); registry.registerAgent(actor, agentInput); registry.createAgentVersion(actor, declaration, { enabled: true });
+  assert.throws(() => registry.getAgentVersion(otherTenantActor, "maintenance-agent", "1"), /VERSION_NOT_FOUND/); assert.equal(audit.list("tenant-b").at(-1)?.eventType, "REGISTRY_REJECTED");
 });
 
 test("rejects a requested-version mismatch and invalid dependency shape", () => {
-  const registry = createRegistry(); registry.registerAgent(actor, agentInput);
-  assert.throws(() => registry.createAgentVersion(actor, declaration, { enabled: true }, "2"), /DECLARATION_VERSION_MISMATCH/);
+  const registry = createRegistry(); registry.registerAgent(actor, agentInput); assert.throws(() => registry.createAgentVersion(actor, declaration, { enabled: true }, "2"), /DECLARATION_VERSION_MISMATCH/);
   const invalidDependency = { ...declaration, version: "3", dependencies: [{ ...declaration.dependencies[0], targetVersion: undefined, targetVersionConstraint: undefined }] } as ArtifactDeclaration;
   assert.throws(() => registry.createAgentVersion(actor, invalidDependency, { enabled: true }), /dependency requires/);
 });
 
 test("rejects unsupported declaration schema versions", () => {
-  const registry = createRegistry(); registry.registerAgent(actor, agentInput);
-  const unsupported = { ...declaration, version: "2", schemaVersion: "2" as "1" };
+  const registry = createRegistry(); registry.registerAgent(actor, agentInput); const unsupported = { ...declaration, version: "2", schemaVersion: "2" as "1" };
   assert.throws(() => registry.createAgentVersion(actor, unsupported, { enabled: true }), /DECLARATION_SCHEMA_UNSUPPORTED/);
 });
 
@@ -66,17 +71,11 @@ test("rejects non-active policy versions for new registrations", () => {
 });
 
 test("uses the shared authorization boundary and preserves denial evidence", () => {
-  const audit = new InMemoryAuditEventStore();
-  const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: deny, auditSink: new InMemoryRegistryAuditSink(), authorizationAuditStore: audit });
-  assert.throws(() => registry.registerAgent(actor, agentInput), /POLICY_DENIED/);
-  assert.equal(audit.listByTenant("tenant-a").at(-1)?.eventType, "AUTHORIZATION_DENIED");
+  const audit = new InMemoryAuditEventStore(); const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: deny, auditSink: new InMemoryRegistryAuditSink(), authorizationAuditStore: audit });
+  assert.throws(() => registry.registerAgent(actor, agentInput), /POLICY_DENIED/); assert.equal(audit.listByTenant("tenant-a").at(-1)?.eventType, "AUTHORIZATION_DENIED");
 });
 
 test("links allowed registry authorization to the existing audit boundary", () => {
-  const audit = new InMemoryAuditEventStore();
-  const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: allow, auditSink: new InMemoryRegistryAuditSink(), authorizationAuditStore: audit });
-  registry.registerAgent(actor, agentInput);
-  const event = audit.listByTenant("tenant-a").at(-1);
-  assert.equal(event?.eventType, "AUTHORIZATION_DECISION");
-  assert.deepEqual(event?.policyVersions, ["policy.registry@1"]);
+  const audit = new InMemoryAuditEventStore(); const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: allow, auditSink: new InMemoryRegistryAuditSink(), authorizationAuditStore: audit }); registry.registerAgent(actor, agentInput);
+  const event = audit.listByTenant("tenant-a").at(-1); assert.equal(event?.eventType, "AUTHORIZATION_DECISION"); assert.deepEqual(event?.policyVersions, ["policy.registry@1"]);
 });
