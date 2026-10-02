@@ -52,21 +52,20 @@ export class InMemoryRegistryStore implements RegistryStore {
   }
 
   async listArtifactVersions(artifactType: ArtifactVersion["artifactType"], artifactId: string): Promise<readonly ArtifactVersion[]> {
-    return [...this.artifactVersions.values()]
-      .filter((value) => value.artifactType === artifactType && value.artifactId === artifactId)
-      .map((value) => structuredClone(value));
+    return [...this.artifactVersions.values()].filter((value) => value.artifactType === artifactType && value.artifactId === artifactId).map((value) => structuredClone(value));
   }
 
   async transitionArtifactVersion(artifactType: ArtifactVersion["artifactType"], artifactId: string, version: string, lifecycleStatus: LifecycleState): Promise<void> {
-    const key = `${artifactType}:${artifactId}:${version}`;
-    const current = this.artifactVersions.get(key);
+    const current = this.artifactVersions.get(`${artifactType}:${artifactId}:${version}`);
     if (!current) throw new Error("artifact version not found");
     current.lifecycleStatus = lifecycleStatus;
   }
 
   async createAgent(identity: AgentIdentity): Promise<void> {
-    if (this.agents.has(identity.artifactId)) throw new Error("agent identity already exists");
-    if (!(await this.getArtifact("agent", identity.artifactId))) throw new Error("agent artifact identity does not exist");
+    const key = `agent:${identity.artifactId}`;
+    if (this.artifacts.has(key) || this.agents.has(identity.artifactId)) throw new Error("agent identity already exists");
+    const artifact = structuredClone(identity);
+    this.artifacts.set(key, artifact);
     this.agents.set(identity.artifactId, structuredClone(identity));
   }
 
@@ -79,8 +78,7 @@ export class InMemoryRegistryStore implements RegistryStore {
     const key = `${version.agentId}:${version.version}`;
     if (this.agentVersions.has(key)) throw new Error("agent version already exists");
     if (!(await this.getAgent(version.agentId))) throw new Error("agent identity does not exist");
-    const artifactVersion = await this.getArtifactVersion("agent", version.agentId, version.artifactVersion);
-    if (!artifactVersion) throw new Error("corresponding artifact version does not exist");
+    if (!(await this.getArtifactVersion("agent", version.agentId, version.artifactVersion))) throw new Error("corresponding artifact version does not exist");
     this.agentVersions.set(key, structuredClone(version));
   }
 
@@ -90,9 +88,7 @@ export class InMemoryRegistryStore implements RegistryStore {
   }
 
   async listAgentVersions(agentId: string): Promise<readonly AgentVersion[]> {
-    return [...this.agentVersions.values()]
-      .filter((value) => value.agentId === agentId)
-      .map((value) => structuredClone(value));
+    return [...this.agentVersions.values()].filter((value) => value.agentId === agentId).map((value) => structuredClone(value));
   }
 
   async transitionAgentVersion(agentId: string, version: string, lifecycleStatus: LifecycleState): Promise<void> {
