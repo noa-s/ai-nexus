@@ -149,8 +149,7 @@ jobs:
             exit 1
           fi
           echo "Artifact version truncation was correctly rejected."
-          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO registry.artifact_version(artifact_type, artifact_id, version, content, content_digest, lifecycle_status, created_by) VALUES ('agent', 'ci-agent', '1.0', '{\"name\":\"ci-agent\"}', repeat('a',64), 'DRAFT', 'ci-user') ON CONFLICT DO NOTHING; INSERT INTO registry.agent(agent_id, name, owner_ref, tenant_id, lifecycle_status, risk_classification, data_classification) VALUES ('ci-agent', 'CI Agent', 'ci-owner', 'ci-tenant', 'DRAFT', 'low', 'internal') ON CONFLICT DO NOTHING; INSERT INTO registry.agent_version(agent_id, version, artifact_id_version, artifact_version, content, content_digest, lifecycle_status, created_by) VALUES ('ci-agent', '1.0', 'ci-agent', '1.0', '{\"name\":\"ci-agent\"}', repeat('a',64), 'DRAFT', 'ci-user') ON CONFLICT DO NOTHING;"
-          then
+          if ! docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO registry.artifact_version(artifact_type, artifact_id, version, content, content_digest, lifecycle_status, created_by) VALUES ('agent', 'ci-agent', '1.0', '{\"name\":\"ci-agent\"}', repeat('a',64), 'DRAFT', 'ci-user') ON CONFLICT DO NOTHING; INSERT INTO registry.agent(agent_id, name, owner_ref, tenant_id, lifecycle_status, risk_classification, data_classification) VALUES ('ci-agent', 'CI Agent', 'ci-owner', 'ci-tenant', 'DRAFT', 'low', 'internal') ON CONFLICT DO NOTHING; INSERT INTO registry.agent_version(agent_id, version, artifact_id_version, artifact_version, content, content_digest, lifecycle_status, created_by) VALUES ('ci-agent', '1.0', 'ci-agent', '1.0', '{\"name\":\"ci-agent\"}', repeat('a',64), 'DRAFT', 'ci-user') ON CONFLICT DO NOTHING;"; then
             echo "Registry agent version seed failed"
             exit 1
           fi
