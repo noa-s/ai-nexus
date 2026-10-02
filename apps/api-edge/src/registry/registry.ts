@@ -72,14 +72,14 @@ function assertDependency(reference: DependencyReference): void {
   }
 }
 
-function assertAuthorization(
+async function assertAuthorization(
   actor: RegistryActor,
   authorization: RegistryAuthorization,
   action: string,
   target: string,
   audit: RegistryAuditSink,
   details: Pick<RegistryAuditEvent, "artifactType" | "artifactId" | "version"> = {},
-): void {
+): Promise<void> {
   if (authorization.authorize(actor, action, target)) return;
   audit.append({
     eventId: randomUUID(),
@@ -97,6 +97,7 @@ function assertAuthorization(
 }
 
 export interface RegisterArtifactInput extends Omit<ArtifactIdentity, "lifecycleStatus"> {
+  actor: RegistryActor;
   lifecycleStatus?: LifecycleState;
 }
 
@@ -143,8 +144,8 @@ export class ArtifactAgentRegistry {
     private readonly policies: PolicyReferenceResolver,
   ) {}
 
-  registerArtifact(input: RegisterArtifactInput): ArtifactIdentity {
-    assertAuthorization(input.actor, this.authorization, "registry.artifact.create", `artifact:${input.artifactType}/${input.artifactId}`, this.audit, {
+  async registerArtifact(input: RegisterArtifactInput): Promise<ArtifactIdentity> {
+    await assertAuthorization(input.actor, this.authorization, "registry.artifact.create", `artifact:${input.artifactType}/${input.artifactId}`, this.audit, {
       artifactType: input.artifactType,
       artifactId: input.artifactId,
     });
@@ -152,18 +153,18 @@ export class ArtifactAgentRegistry {
     assertNonEmpty(input.name, "name");
     if (input.tenantId !== input.actor.tenantId) throw new Error("tenant mismatch");
     const identity: ArtifactIdentity = { ...input, lifecycleStatus: input.lifecycleStatus ?? "DRAFT" };
-    this.store.createArtifact(identity);
+    await this.store.createArtifact(identity);
     this.auditMutation(input.actor, "registry.artifact.create", identity.artifactType, identity.artifactId);
     return identity;
   }
 
-  registerArtifactVersion(input: RegisterArtifactVersionInput): ArtifactVersion {
-    assertAuthorization(input.actor, this.authorization, "registry.version.create", `artifact:${input.artifactType}/${input.artifactId}/${input.version}`, this.audit, input);
+  async registerArtifactVersion(input: RegisterArtifactVersionInput): Promise<ArtifactVersion> {
+    await assertAuthorization(input.actor, this.authorization, "registry.version.create", `artifact:${input.artifactType}/${input.artifactId}/${input.version}`, this.audit, input);
     assertVersion(input.version);
-    const artifact = this.store.getArtifact(input.artifactType, input.artifactId);
+    const artifact = await this.store.getArtifact(input.artifactType, input.artifactId);
     if (!artifact) throw new Error("artifact identity not found");
     if (artifact.tenantId !== input.actor.tenantId) throw new Error("tenant mismatch");
-    const existing = this.store.getArtifactVersion(input.artifactType, input.artifactId, input.version);
+    const existing = await this.store.getArtifactVersion(input.artifactType, input.artifactId, input.version);
     if (existing) {
       this.audit.append({
         eventId: randomUUID(),
@@ -191,13 +192,13 @@ export class ArtifactAgentRegistry {
       createdBy: input.actor.subject,
       createdAt: new Date().toISOString(),
     };
-    this.store.createArtifactVersion(version);
+    await this.store.createArtifactVersion(version);
     this.auditMutation(input.actor, "registry.version.create", input.artifactType, input.artifactId, input.version);
     return version;
   }
 
-  registerAgent(input: RegisterAgentInput): AgentIdentity {
-    assertAuthorization(input.actor, this.authorization, "registry.agent.create", `agent:${input.agentId}`, this.audit, {
+  async registerAgent(input: RegisterAgentInput): Promise<AgentIdentity> {
+    await assertAuthorization(input.actor, this.authorization, "registry.agent.create", `agent:${input.agentId}`, this.audit, {
       artifactType: "agent",
       artifactId: input.agentId,
     });
@@ -214,21 +215,21 @@ export class ArtifactAgentRegistry {
       dataClassification: input.dataClassification,
       lifecycleStatus: "DRAFT",
     };
-    this.store.createArtifact(artifact);
+    await this.store.createArtifact(artifact);
     const agent: AgentIdentity = { ...artifact, artifactType: "agent", riskClassification: input.riskClassification, dataClassification: input.dataClassification };
-    this.store.createAgent(agent);
+    await this.store.createAgent(agent);
     this.auditMutation(input.actor, "registry.agent.create", "agent", input.agentId);
     return agent;
   }
 
-  registerAgentVersion(input: RegisterAgentVersionInput): AgentVersion {
-    assertAuthorization(input.actor, this.authorization, "registry.agent-version.create", `agent:${input.agentId}/${input.version}`, this.audit, {
+  async registerAgentVersion(input: RegisterAgentVersionInput): Promise<AgentVersion> {
+    await assertAuthorization(input.actor, this.authorization, "registry.agent-version.create", `agent:${input.agentId}/${input.version}`, this.audit, {
       artifactType: "agent",
       artifactId: input.agentId,
       version: input.version,
     });
     assertVersion(input.version);
-    const agent = this.store.getAgent(input.agentId);
+    const agent = await this.store.getAgent(input.agentId);
     if (!agent) throw new Error("agent identity not found");
     if (agent.tenantId !== input.actor.tenantId) throw new Error("tenant mismatch");
     if (input.declaration.schemaVersion !== "1") throw new Error("unsupported declaration schema version");
@@ -241,10 +242,10 @@ export class ArtifactAgentRegistry {
       if (!this.policies.exists(policy)) throw new Error(`policy reference not found: ${policy.policyId}/${policy.policyVersion}`);
       if (!this.policies.isAssignable(policy, input.actor.tenantId)) throw new Error(`policy reference is not assignable: ${policy.policyId}/${policy.policyVersion}`);
     }
-    const artifactVersion = this.store.getArtifactVersion("agent", input.agentId, input.version);
+    const artifactVersion = await this.store.getArtifactVersion("agent", input.agentId, input.version);
     if (!artifactVersion) throw new Error("corresponding artifact version not found");
     if (artifactVersion.contentDigest !== contentDigest(input.content)) throw new Error("artifact and agent version content digest mismatch");
-    if (this.store.getAgentVersion(input.agentId, input.version)) throw new Error("agent version already exists");
+    if (await this.store.getAgentVersion(input.agentId, input.version)) throw new Error("agent version already exists");
     const version: AgentVersion = {
       agentId: input.agentId,
       version: input.version,
@@ -265,46 +266,46 @@ export class ArtifactAgentRegistry {
       createdBy: input.actor.subject,
       createdAt: new Date().toISOString(),
     };
-    this.store.createAgentVersion(version);
+    await this.store.createAgentVersion(version);
     this.auditMutation(input.actor, "registry.agent-version.create", "agent", input.agentId, input.version);
     return version;
   }
 
-  transitionAgentVersion(actor: RegistryActor, agentId: string, version: string, next: LifecycleState): void {
-    assertAuthorization(actor, this.authorization, "registry.agent-version.lifecycle", `agent:${agentId}/${version}`, this.audit, {
+  async transitionAgentVersion(actor: RegistryActor, agentId: string, version: string, next: LifecycleState): Promise<void> {
+    await assertAuthorization(actor, this.authorization, "registry.agent-version.lifecycle", `agent:${agentId}/${version}`, this.audit, {
       artifactType: "agent",
       artifactId: agentId,
       version,
     });
-    const current = this.store.getAgentVersion(agentId, version);
+    const current = await this.store.getAgentVersion(agentId, version);
     if (!current) throw new Error("agent version not found");
-    const agent = this.store.getAgent(agentId);
+    const agent = await this.store.getAgent(agentId);
     if (!agent || agent.tenantId !== actor.tenantId) throw new Error("tenant mismatch");
     assertLifecycleTransition(current.lifecycleStatus, next);
-    this.store.transitionAgentVersion(agentId, version, next);
+    await this.store.transitionAgentVersion(agentId, version, next);
     this.auditMutation(actor, "registry.agent-version.lifecycle", "agent", agentId, version);
   }
 
-  getAgentVersion(actor: RegistryActor, agentId: string, version: string): AgentVersion {
-    assertAuthorization(actor, this.authorization, "registry.agent-version.read", `agent:${agentId}/${version}`, this.audit, {
+  async getAgentVersion(actor: RegistryActor, agentId: string, version: string): Promise<AgentVersion> {
+    await assertAuthorization(actor, this.authorization, "registry.agent-version.read", `agent:${agentId}/${version}`, this.audit, {
       artifactType: "agent",
       artifactId: agentId,
       version,
     });
-    const agent = this.store.getAgent(agentId);
+    const agent = await this.store.getAgent(agentId);
     if (!agent || agent.tenantId !== actor.tenantId) throw new Error("registry resource not found");
-    const result = this.store.getAgentVersion(agentId, version);
+    const result = await this.store.getAgentVersion(agentId, version);
     if (!result) throw new Error("agent version not found");
     return result;
   }
 
-  isGovernedEligible(actor: RegistryActor, agentId: string, version: string): boolean {
-    const value = this.getAgentVersion(actor, agentId, version);
-    const agent = this.store.getAgent(agentId);
+  async isGovernedEligible(actor: RegistryActor, agentId: string, version: string): Promise<boolean> {
+    const value = await this.getAgentVersion(actor, agentId, version);
+    const agent = await this.store.getAgent(agentId);
     if (!agent || !agent.ownerRef || !agent.riskClassification || !agent.dataClassification) return false;
     if (!["APPROVED", "PUBLISHED"].includes(value.lifecycleStatus)) return false;
     if (value.policyReferences.some((policy) => !this.policies.exists(policy))) return false;
-    return value.evaluationStatus !== undefined && value.accessRequirements !== undefined;
+    return value.evaluationStatus !== undefined && value.evaluationStatus !== null && value.accessRequirements !== undefined && value.accessRequirements !== null;
   }
 
   private auditMutation(actor: RegistryActor, action: string, artifactType: ArtifactType, artifactId: string, version?: string): void {
