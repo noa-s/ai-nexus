@@ -4,8 +4,8 @@ import type { RegistryAuditEvent, RegistryAuditSink } from "./types.js";
 export class SqlRegistryAuditSink implements RegistryAuditSink {
   constructor(private readonly query: SqlExecutor) {}
 
-  append(event: RegistryAuditEvent): void {
-    void this.query(
+  async append(event: RegistryAuditEvent): Promise<void> {
+    await this.query(
       `INSERT INTO "authorization".event
        (event_id, event_type, principal_id, workload_id, tenant_id, action, target, resource_ref, request_id, reason_code, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
