@@ -30,7 +30,12 @@ export interface AuthorizationPolicySet {
 
 const matches = (pattern: string, value: string): boolean => pattern === "*" || pattern === value;
 
-export function authorize(identity: IdentityContext, request: AuthorizationRequest, policySet: AuthorizationPolicySet, traceId?: string): AuthorizationResult {
+export function authorize(
+  identity: IdentityContext,
+  request: AuthorizationRequest,
+  policySet: AuthorizationPolicySet,
+  traceId?: string,
+): AuthorizationResult {
   const evaluatedAt = new Date().toISOString();
   const applicable = policySet.policies
     .filter((policy) =>
@@ -39,7 +44,7 @@ export function authorize(identity: IdentityContext, request: AuthorizationReque
       (!policy.tenantId || policy.tenantId === request.tenantId) &&
       (!policy.role || identity.roles.includes(policy.role)),
     )
-    .sort((a, b) => b.priority - a.priority);
+    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id) || a.version.localeCompare(b.version));
 
   const deny = (reasonCode: string, policies = applicable): AuthorizationResult => ({
     decisionId: randomUUID(),
@@ -53,7 +58,9 @@ export function authorize(identity: IdentityContext, request: AuthorizationReque
 
   if (identity.tenantId !== request.tenantId) return deny("TENANT_SCOPE_DENIED", []);
 
-  const rolePermissions = policySet.roles.filter((role) => identity.roles.includes(role.name)).flatMap((role) => role.permissions);
+  const rolePermissions = policySet.roles
+    .filter((role) => identity.roles.includes(role.name))
+    .flatMap((role) => role.permissions);
   const roleAllows = rolePermissions.some((permission) =>
     matches(permission.action, request.action) &&
     matches(permission.target, request.target) &&
@@ -73,4 +80,34 @@ export function authorize(identity: IdentityContext, request: AuthorizationReque
     evaluatedAt,
     traceId,
   };
+}
+
+export function authorizeServiceCall(
+  identity: IdentityContext,
+  targetService: string,
+  action: string,
+  policySet: AuthorizationPolicySet,
+  requestId = randomUUID(),
+  traceId?: string,
+): AuthorizationResult {
+  if (identity.principalType !== "workload" || !identity.workloadId) {
+    return {
+      decisionId: randomUUID(),
+      decision: "DENY",
+      reasonCode: "WORKLOAD_IDENTITY_REQUIRED",
+      requestId,
+      policyVersions: [],
+      evaluatedAt: new Date().toISOString(),
+      traceId,
+    };
+  }
+
+  return authorize(identity, {
+    requestId,
+    tenantId: identity.tenantId,
+    workload: identity.workloadId,
+    action,
+    target: `service:${targetService}`,
+    purpose: "service-to-service",
+  }, policySet, traceId);
 }
