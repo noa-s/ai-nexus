@@ -5,6 +5,10 @@ export class SqlRegistryAuditSink implements RegistryAuditSink {
   constructor(private readonly query: SqlExecutor) {}
 
   async append(event: RegistryAuditEvent): Promise<void> {
+    const target = event.version ? `${event.artifactType}:${event.artifactId}:${event.version}` : event.artifactId ? `${event.artifactType}:${event.artifactId}` : undefined;
+    const lifecycleContext = event.previousLifecycleStatus && event.resultingLifecycleStatus
+      ? `;lifecycle:${event.previousLifecycleStatus}->${event.resultingLifecycleStatus}`
+      : "";
     await this.query(
       `INSERT INTO "authorization".event
        (event_id, event_type, principal_id, workload_id, tenant_id, action, target, resource_ref, request_id, reason_code, created_at)
@@ -17,7 +21,7 @@ export class SqlRegistryAuditSink implements RegistryAuditSink {
         event.tenantId,
         event.action,
         event.target,
-        event.version ? `${event.artifactType}:${event.artifactId}:${event.version}` : event.artifactId ? `${event.artifactType}:${event.artifactId}` : undefined,
+        target ? `${target}${lifecycleContext}` : undefined,
         undefined,
         event.reasonCode,
         event.createdAt,
