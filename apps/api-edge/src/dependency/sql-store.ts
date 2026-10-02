@@ -87,7 +87,7 @@ export class SqlDependencyGraphStore implements DependencyGraphStore {
 type SnapshotRow = { snapshot_id: string; repository: string; revision: string; analyzer_version: string; created_at: string };
 type EdgeRow = Record<string, unknown> & {
   edge_id: string; source_artifact_type: string; source_artifact_id: string; source_version: string;
-  target_artifact_type: string; target_artifact_id: string; target_version: string; target_version_constraint: string | null;
+  target_artifact_type: string; target_artifact_id: string; target_version: string | null; target_version_constraint: string | null;
   relationship_type: string; consumer_owner_reference: string; declaration_origin: string;
   source_repository_location: string | null; analyzer_version: string; tenant_id: string | null;
 };
@@ -101,7 +101,7 @@ function serializeEdge(edge: DependencyEdge) {
     source_version: edge.source.version,
     target_artifact_type: edge.target.artifactType,
     target_artifact_id: edge.target.artifactId,
-    target_version: edge.target.version,
+    target_version: edge.targetVersionConstraint ? null : edge.target.version,
     target_version_constraint: edge.targetVersionConstraint ?? null,
     relationship_type: edge.relationshipType,
     consumer_owner_reference: edge.consumerOwnerReference,
@@ -116,7 +116,7 @@ function deserializeEdge(row: EdgeRow): DependencyEdge {
   return {
     edgeId: row.edge_id,
     source: { artifactType: row.source_artifact_type as DependencyEdge["source"]["artifactType"], artifactId: row.source_artifact_id, version: row.source_version },
-    target: { artifactType: row.target_artifact_type as DependencyEdge["target"]["artifactType"], artifactId: row.target_artifact_id, version: row.target_version },
+    target: { artifactType: row.target_artifact_type as DependencyEdge["target"]["artifactType"], artifactId: row.target_artifact_id, version: row.target_version ?? row.target_version_constraint ?? "" },
     targetVersionConstraint: row.target_version_constraint ?? undefined,
     relationshipType: row.relationship_type as DependencyEdge["relationshipType"],
     consumerOwnerReference: row.consumer_owner_reference,
