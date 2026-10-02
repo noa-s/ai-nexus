@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { authorize } from "./authorization.js";
-import type { AuthorizationPolicySet, AuthorizationResult } from "./authorization.js";
-import type { IdentityContext } from "./types.js";
+import type { AuthorizationPolicySet } from "./authorization.js";
+import type { AuthorizationResult, IdentityContext } from "./types.js";
 
 export interface AuthorizationAuditEvent {
   eventId: string;
