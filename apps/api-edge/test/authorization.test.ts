@@ -23,6 +23,30 @@ test("signed identity token round-trips without exposing a secret", () => {
   assert.equal(verifySignedToken(token, "wrong-secret", 1_700_000_010_000), null);
 });
 
+test("signed workload identity token preserves workloadId and omits absent agentId", () => {
+  const workloadIdentity = {
+    ...identity,
+    principalType: "workload" as const,
+    workloadId: "worker-1",
+  };
+  const token = createSignedToken(workloadIdentity, secret, 60, 1_700_000_000_000);
+
+  assert.deepEqual(verifySignedToken(token, secret, 1_700_000_010_000), workloadIdentity);
+  assert.equal(Object.hasOwn(verifySignedToken(token, secret, 1_700_000_010_000)!, "agentId"), false);
+});
+
+test("signed agent identity token preserves agentId and omits absent workloadId", () => {
+  const agentIdentity = {
+    ...identity,
+    principalType: "agent" as const,
+    agentId: "agent-1",
+  };
+  const token = createSignedToken(agentIdentity, secret, 60, 1_700_000_000_000);
+
+  assert.deepEqual(verifySignedToken(token, secret, 1_700_000_010_000), agentIdentity);
+  assert.equal(Object.hasOwn(verifySignedToken(token, secret, 1_700_000_010_000)!, "workloadId"), false);
+});
+
 test("authorization allows matching RBAC and policy constraints", () => {
   const result = authorize(identity, {
     requestId: "request-1",
