@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import test from "node:test";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
@@ -68,7 +69,6 @@ test("signed tokens reject unsupported principal types", () => {
     principalType: "agent",
     exp: 1_700_000_100,
   })).toString("base64url");
-  const { createHmac } = await import("node:crypto");
   const signature = createHmac("sha256", secret).update(encodedPayload).digest("base64url");
 
   assert.equal(verifySignedToken(`${encodedPayload}.${signature}`, secret, 1_700_000_000_000), null);
