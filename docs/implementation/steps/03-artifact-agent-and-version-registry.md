@@ -125,7 +125,10 @@ A material artifact is addressed as:
 Required invariants:
 
 - `artifactId` is stable across versions;
-- `version` uniquely identifies an immutable version within an artifact identity;
+- `version` uses Semantic Versioning (`MAJOR.MINOR.PATCH`), optionally with a permitted prerelease/build suffix according to the repository's version parser;
+- versions are immutable and a given `(artifactType, artifactId, version)` may be registered only once;
+- version creation must reject an existing `(artifactType, artifactId, version)` rather than overwrite it;
+- a new version MUST use a distinct version identifier when its immutable content changes;
 - `(artifactType, artifactId, version)` is unique;
 - published/active versions cannot have their immutable content or identity metadata edited;
 - a content change requires a new version;
@@ -137,7 +140,11 @@ Required invariants:
 
 Each ArtifactVersion MUST have a deterministic representation of the versioned artifact metadata/configuration sufficient to identify what was registered. The implementation MAY store normalized relational fields plus a canonical JSON representation, but the immutable representation MUST be sufficient to detect content mutation.
 
-A content digest SHOULD be retained so later systems can verify artifact identity independently of mutable metadata.
+A cryptographic content digest MUST be retained for each immutable version. The digest is computed from the canonical immutable representation used by the registry and MUST remain stable for the lifetime of that version.
+
+### Version conflict rule
+
+A registration request for an existing `(artifactType, artifactId, version)` is rejected. The registry MUST NOT silently replace the existing version, even when the submitted content digest differs.
 
 ## 8. Artifact lifecycle
 
@@ -169,7 +176,7 @@ The registry MUST NOT interpret `PUBLISHED` as universal execution authorization
 
 ## 9. Agent model
 
-An Agent is a governed material artifact specialization.
+An Agent is a **specialized Artifact**: every Agent has a corresponding Artifact identity/type, and every AgentVersion is the Agent-specialized form of an ArtifactVersion. Agent-specific metadata extends the generic artifact metadata; it does not create a parallel version identity model.
 
 Minimum Agent identity metadata:
 
@@ -187,7 +194,7 @@ Minimum Agent identity metadata:
 Minimum AgentVersion metadata:
 
 - Agent ID;
-- immutable version;
+- immutable Semantic Version;
 - artifact content/configuration reference;
 - content digest;
 - lifecycle state;
@@ -197,11 +204,32 @@ Minimum AgentVersion metadata:
 - declared model/capability constraints where applicable;
 - declared tool/capability references where applicable;
 - declared knowledge configuration references where applicable;
-- evaluation/release status reference where available, without making Evaluation a Step 03 dependency.
+- evaluation/release status reference;
+- deployment status;
+- access requirements.
+
+Evaluation status, deployment status, and access requirements are **metadata/references**, not implementations of Evaluation, deployment, or Marketplace capabilities in Step 03.
 
 Step 03 MUST distinguish **registration metadata** from live execution input. A runtime request is not part of the immutable AgentVersion definition.
 
-## 10. Policy references
+## 10. Governance eligibility
+
+Registration alone does not make an Agent governed for execution or Marketplace paths.
+
+An AgentVersion is **governed-eligible** only when the registry can establish, according to the applicable governance rules, that:
+
+- the AgentVersion is structurally valid;
+- required immutable policy-version references resolve to authoritative Policy Registry versions valid for the intended assignment/context;
+- required governance metadata is present;
+- lifecycle state permits the requested governed path;
+- required evaluation/release evidence is referenced when the applicable release policy requires it;
+- required ownership, tenant, risk, and data-classification metadata is present.
+
+The registry records the relevant governance/release status and references; it does not implement the Evaluation Runtime or final runtime authorization. Runtime authorization remains the responsibility of the shared authorization boundary.
+
+`PUBLISHED` MUST NOT by itself be treated as evidence of governance eligibility or execution authorization.
+
+## 11. Policy references
 
 AgentVersion may reference immutable PolicyVersion records owned by the Policy Registry.
 
@@ -220,9 +248,29 @@ Policy references must be resolvable against the authoritative Policy Registry a
 
 If an AgentVersion references a policy version that is not valid for assignment under the policy lifecycle rules, registration/publication MUST be rejected according to the applicable governance rule.
 
-## 11. Dependency references
+## 12. Dependency references
 
 Step 03 establishes the **declared version-reference shape** needed by the later Dependency Analyzer. It does not compute the graph.
+
+The authoritative language-neutral declaration contract MUST represent a dependency as:
+
+```text
+DependencyReference
+- sourceArtifactType
+- sourceArtifactId
+- sourceVersion
+- targetArtifactType
+- targetArtifactId
+- targetVersion or targetVersionConstraint
+- relationshipType
+- consumerOwnerReference
+- declarationOrigin
+- sourceRepositoryLocation (when applicable)
+```
+
+`relationshipType` MUST use a controlled vocabulary defined by the implementation contract. At minimum it MUST distinguish a runtime/functional dependency from a governance/policy dependency.
+
+`declarationOrigin` identifies how the dependency was declared (for example, artifact metadata or source artifact declaration), while `sourceRepositoryLocation` identifies the repository/path or equivalent source location when the declaration is repository-backed.
 
 An AgentVersion MAY declare dependencies such as:
 
@@ -235,16 +283,32 @@ AgentVersion
  └── KnowledgeConfigurationVersion
 ```
 
-Each declared dependency MUST contain enough information for Step 04 to later derive a version-to-version dependency edge, including:
+Each declared dependency MUST contain enough information for Step 04 to later derive a version-to-version dependency edge. The registry MUST NOT maintain a manually edited global dependency graph.
 
-- source artifact identity/version;
-- target artifact identity/version or explicit version constraint;
-- relationship type;
-- declaration origin/source metadata.
+## 13. Agent artifact declaration contract
 
-The registry MUST NOT maintain a manually edited global dependency graph.
+To preserve the repository convention established by ADR-003, Agent implementations MUST use the initial artifact declaration convention:
 
-## 12. Registration and lifecycle operations
+```text
+<agent-name>.artifact.ts
+```
+
+The declaration is the source-level representation that Step 04 will scan deterministically. Step 03 defines its required metadata shape; Step 04 owns scanning and derived graph computation.
+
+The declaration MUST expose, directly or through a statically inspectable exported structure:
+
+```text
+artifact identity/type
+artifact version
+Agent identity
+declared dependencies
+policy-version references
+capability/task metadata
+```
+
+The declaration MUST be deterministic and must not require executing an Agent to discover its declared dependency metadata. Runtime-generated dependencies are outside the Step 03 declaration contract and are not replaced by the static declaration.
+
+## 14. Registration and lifecycle operations
 
 The logical registry contract MUST support at minimum:
 
@@ -263,7 +327,7 @@ The logical registry contract MUST support at minimum:
 
 The contract MUST require explicit version selection for operations that need reproducibility. A generic `latest` lookup MAY exist for discovery/UI convenience but MUST NOT be used as the authoritative execution reference.
 
-## 13. Authorization and security
+## 15. Authorization and security
 
 Registry operations are protected operations.
 
@@ -280,7 +344,7 @@ At minimum:
 
 The registry must preserve caller/workload context from Step 02 for security decisions.
 
-## 14. Data model
+## 16. Data model and immutability enforcement
 
 PostgreSQL remains the authoritative relational store.
 
@@ -300,17 +364,36 @@ AgentVersion
 
 The implementation MUST preserve logical domain ownership and MUST NOT introduce direct writes from unrelated domains.
 
+Immutable ArtifactVersion/AgentVersion content and identity metadata MUST be protected at the persistence boundary, not only by application code. The implementation MUST provide database-level protection such that:
+
+- UPDATE of immutable version content/identity fields is rejected;
+- DELETE of an immutable version is rejected;
+- TRUNCATE cannot remove immutable version history through an ordinary table operation;
+- lifecycle state and other explicitly mutable lifecycle metadata remain changeable through the defined lifecycle operation;
+- historical versions remain queryable after later versions are registered.
+
 Recommended fields are documented as implementation requirements rather than a fixed SQL schema; the implementation may normalize or use JSONB where appropriate, provided the invariants and queryability above are preserved.
 
-## 15. API/module contract
+## 17. API/module and language-neutral contract
 
 The first implementation may be an in-process TypeScript module/API because v1 logical boundaries do not require separate deployment units.
 
-The contract MUST be language-neutral at the boundary so later Python consumers or separately deployed services can consume registry data without importing Node.js implementation details.
+The registry boundary MUST be language-neutral. Node.js/TypeScript implementation types MUST NOT be the only contract consumed by later Python consumers or separately deployed services.
+
+The language-neutral registry contracts MUST be defined under `packages/contracts/v1` and MUST cover, at minimum:
+
+```text
+Artifact / ArtifactVersion
+Agent / AgentVersion
+DependencyReference
+registry request/response shapes for exact lookup and registration/lifecycle operations
+```
+
+The contract format MUST be independently machine-validatable (for example JSON Schema or the repository's established language-neutral schema mechanism), and contract tests MUST validate representative payloads without importing TypeScript domain implementation types.
 
 The contract MUST expose stable identifiers and explicit versions, not database row IDs as the only external identity.
 
-## 16. Observability and audit
+## 18. Observability and audit
 
 Material registry mutations MUST produce auditable events containing sufficient context to establish:
 
@@ -327,7 +410,7 @@ Reads of sensitive registry history by Auditor must remain auditable under the S
 
 Registry records themselves are not the complete causal execution trace; Step 07 will integrate registry references into the broader execution trace.
 
-## 17. Testing and validation
+## 19. Testing and validation
 
 Dedicated tests MUST exist for every new/updated implementation module, following the lesson established during Step 02.
 
@@ -337,6 +420,7 @@ Required coverage includes:
 
 - duplicate identity/version rejected;
 - immutable version content cannot be changed;
+- immutable identity metadata cannot be changed;
 - content digest remains stable;
 - lifecycle transition does not mutate immutable content;
 - invalid lifecycle transitions rejected;
@@ -350,6 +434,7 @@ Required coverage includes:
 - duplicate AgentVersion rejection;
 - policy reference validation;
 - declared dependency validation;
+- governance eligibility validation;
 - tenant/scope isolation;
 - authorized read/list behavior;
 - unauthorized access rejection.
@@ -366,34 +451,40 @@ Required coverage includes:
 
 ### Contract tests
 
-Language-neutral registry request/response schemas MUST be validated independently of TypeScript implementation types.
+Language-neutral registry request/response schemas MUST be validated independently of TypeScript implementation types. Tests MUST also validate the static `.artifact.ts` declaration shape used as the Step 04 dependency-analysis input.
 
-## 18. Acceptance criteria
+## 20. Acceptance criteria
 
 Step 03 is accepted only when:
 
 1. Artifact and Agent registry boundaries are implemented and explicitly owned.
-2. Material artifacts are addressable by stable identity and immutable version.
+2. Material artifacts are addressable by stable identity and immutable Semantic Version.
 3. AgentVersion is a governed versioned artifact rather than mutable configuration.
 4. Lifecycle transitions are explicit and tested.
 5. Policy references point to exact authoritative Policy Registry versions without duplicating policy definitions.
 6. Declared dependency references provide the input shape required by Step 04 without creating a manually maintained global graph.
-7. Registry operations enforce tenant/scope authorization using the Step 02 authorization boundary.
-8. Auditor access is read-oriented, scoped, and auditable.
-9. PostgreSQL persistence respects domain ownership and immutability requirements.
-10. Every new/updated implementation module has dedicated meaningful test coverage.
-11. Language-neutral contracts are validated independently of implementation code.
-12. CI passes all applicable Node/Python/database/repository safety checks.
-13. No Step 04/05/06/08+ capability is silently implemented as part of this step.
+7. The initial `<agent-name>.artifact.ts` declaration contract is defined and statically inspectable.
+8. Registry operations enforce tenant/scope authorization using the Step 02 authorization boundary.
+9. Auditor access is read-oriented, scoped, and auditable.
+10. PostgreSQL persistence enforces immutable version content/identity at the database boundary.
+11. Agent metadata supports ownership, risk/data classification, capabilities, model/tool/knowledge references, evaluation/release status, deployment status, and access requirements without implementing those later capabilities.
+12. Governance eligibility is explicit and is not implied solely by `PUBLISHED`.
+13. Every new/updated implementation module has dedicated meaningful test coverage.
+14. Language-neutral contracts are independently machine-validated.
+15. CI passes all applicable Node/Python/database/repository safety checks.
+16. No Step 04/05/06/08+ capability is silently implemented as part of this step.
 
-## 19. Definition of Done
+## 21. Definition of Done
 
 - [ ] Relevant ADRs re-read from the implementation branch.
 - [ ] Step 03 implementation is complete within this scope.
 - [ ] Dedicated tests exist for every new/updated implementation module.
 - [ ] Contract schemas are independently validated.
+- [ ] Static `.artifact.ts` declaration shape is tested.
 - [ ] PostgreSQL migrations apply cleanly from the current staging baseline.
+- [ ] Database-level immutability protections are tested for UPDATE/DELETE/TRUNCATE behavior.
 - [ ] Authorization/security tests pass.
+- [ ] Governance eligibility rules are tested.
 - [ ] Audit behavior is verified.
 - [ ] CI passes.
 - [ ] Implementation is reviewed against every relevant ADR and this specification after implementation, not only before coding.
@@ -402,7 +493,7 @@ Step 03 is accepted only when:
 - [ ] Merged `staging` state is verified.
 - [ ] Step 03 is then marked `COMPLETE` in the roadmap.
 
-## 20. Explicit review gate
+## 22. Explicit review gate
 
 Before Step 03 can be declared complete, perform a fresh comparison of:
 
