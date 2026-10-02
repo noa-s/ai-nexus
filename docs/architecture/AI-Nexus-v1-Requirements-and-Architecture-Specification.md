@@ -1,7 +1,7 @@
 # AI Nexus v1 — Requirements & Architecture Specification
 
-- **Status:** Draft — Stage 3B.5
-- **Version:** 0.5
+- **Status:** Draft — Stage 3B.6
+- **Version:** 0.6
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 
@@ -920,6 +920,337 @@ When an accepted ADR changes, affected requirements, interfaces, data contracts,
 
 ## Current Stage
 
-**Stage 3B.5 — Enterprise Integrations: Marketplace + MCP/Tools + Microsoft/Copilot Studio + secure Node.js/Python service-to-service communication.**
+**Stage 3B.6 — Delivery, Deployment, Final v1 Scope, Hosting, Implementation Phases, and Acceptance Criteria.**
 
 No application implementation should begin until the v1 specification is sufficiently defined and reviewed.
+
+# 28. CI/CD, Dependency Detection and Release Gates
+
+CI/CD is a governed path from source change to deployable AI Nexus artifacts. A release MUST be evaluated against dependency impact, security, evaluation, and governance gates before it can progress to production.
+
+## 28.1 Required release flow
+
+```text
+Pull Request
+    ↓
+Static analysis / type checking
+    ↓
+Unit + contract tests
+    ↓
+Dependency detection / impact analysis
+    ↓
+Supply-chain + security checks
+    ↓
+Evaluation
+    ↓
+Governance / policy release gates
+    ↓
+Build immutable deployment artifacts
+    ↓
+Staging deployment
+    ↓
+Integration / smoke checks
+    ↓
+Production approval
+    ↓
+Production deployment
+```
+
+## 28.2 Dependency-aware release behavior
+
+A material artifact change MUST identify directly and transitively affected artifacts where dependency evidence exists. The pipeline MUST distinguish informational impact from blocking impact.
+
+A release gate MAY require re-evaluation, security review, approval, or deployment restriction based on affected artifact type, dependency classification, policy, or risk level.
+
+## 28.3 Gate requirements
+
+- Source and dependency checks MUST be reproducible from the commit/artifact under evaluation.
+- Security failures classified as release-blocking MUST prevent progression.
+- Governance/policy failures classified as release-blocking MUST prevent progression.
+- Evaluation failures MUST prevent progression when the applicable release policy requires a passing result.
+- Gate decisions MUST be attributable to the versions of policies, evaluators, datasets/configurations, dependency evidence, and artifacts used.
+- A release MUST NOT bypass a blocking gate by deploying the same material artifact through an alternate path.
+
+**Basis:** ADR-003, ADR-010, ADR-011, ADR-012, ADR-013, ADR-018.
+
+# 29. Terraform / Infrastructure as Code
+
+Terraform is the v1 infrastructure-as-code mechanism. Infrastructure definitions MUST be version controlled and reviewed through the normal engineering change process.
+
+## 29.1 Infrastructure requirements
+
+- Environment-specific infrastructure MUST be represented through controlled configuration rather than manual production changes as the normal path.
+- Secrets MUST be referenced through the environment's approved secret-management mechanism and MUST NOT be committed to Terraform source or state intentionally as plaintext application secrets.
+- Infrastructure changes MUST be reviewable before production application.
+- Non-production environments SHOULD be reproducible from the same infrastructure definitions with environment-specific configuration.
+- Terraform state MUST use an approved backend with access control, locking where supported, and appropriate backup/recovery controls.
+- Infrastructure resources MUST have ownership and environment metadata sufficient for operations and FinOps attribution.
+
+## 29.2 Scope
+
+v1 IaC MUST cover, as applicable to the selected hosting environment:
+
+- application/runtime compute;
+- PostgreSQL and pgvector infrastructure;
+- networking and ingress;
+- service identities and permissions;
+- observability dependencies;
+- secret references/integration;
+- storage and backup configuration;
+- CI/CD deployment targets.
+
+**Basis:** ADR-018.
+
+# 30. Deployment Topology
+
+Logical architecture and deployment topology are separate concerns. The v1 deployment MAY group multiple logical components into a small number of deployable units while preserving logical ownership and contract boundaries.
+
+## 30.1 Production-oriented topology
+
+```text
+                    External Users / Systems
+                              │
+                         API / Edge
+                              │
+                    Identity + Authorization
+                              │
+          ┌───────────────────┴───────────────────┐
+          │                                       │
+     Control Plane                           Execution Plane
+          │                                       │
+  Registries / Policy /                    Agent Runtime
+  Evaluation / Marketplace                 LLM Gateway
+  Dependency Graph                         Model Router
+                                           RAG Runtime
+                                           Tool/MCP Runtime
+          │                                       │
+          └───────────────────┬───────────────────┘
+                              │
+                    Shared Capabilities
+                    Audit / Trace / FinOps
+                              │
+                    PostgreSQL + pgvector
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+        LLM Providers     MCP/Tools      External APIs
+```
+
+The deployment topology MUST preserve the following invariants:
+
+- external traffic enters through the approved edge;
+- LLM access remains behind the Gateway;
+- authorization remains an independent control from authentication;
+- domain ownership remains explicit even when components share a process or database deployment;
+- secrets remain outside model context;
+- causal correlation crosses deployment boundaries.
+
+## 30.2 Environment separation
+
+v1 MUST define at least development, staging, and production environments with controlled promotion between them. Production configuration and credentials MUST NOT be implicitly inherited from development.
+
+**Basis:** ADR-004, ADR-005, ADR-018.
+
+# 31. MVP / v1 Scope vs Future Enterprise Capabilities
+
+## 31.1 v1 must demonstrate
+
+The v1 implementation MUST demonstrate an end-to-end governed workflow containing, at minimum:
+
+- Agent registration and immutable versioning;
+- governed Agent execution;
+- LLM Gateway and Model Router;
+- versioned knowledge and authorized RAG retrieval;
+- governed Tool/MCP execution;
+- immutable policies and RBAC;
+- dependency graph and impact evidence;
+- evaluation and release gates;
+- causal observability;
+- execution-level FinOps attribution;
+- governed Marketplace discovery;
+- Copilot Studio/external integration boundary;
+- PostgreSQL + pgvector;
+- Node.js/TypeScript and Python interoperability;
+- CI/CD;
+- Terraform/IaC;
+- production-like staging/deployment topology.
+
+## 31.2 Future enterprise capabilities
+
+The following remain FUTURE unless an explicit v1 requirement is added:
+
+- multi-region active/active operation;
+- large-scale tenant isolation beyond the v1 security model;
+- organization-wide interception of all Microsoft AI activity;
+- a public commercial marketplace ecosystem;
+- broad provider federation beyond the required v1 integrations;
+- advanced autonomous policy optimization;
+- large-scale distributed agent scheduling;
+- full enterprise disaster-recovery automation beyond the v1 deployment target;
+- operational complexity that does not support a demonstrated v1 requirement.
+
+The future list is a scope boundary, not an architectural prohibition. ADR-compatible extension points SHOULD remain available where they do not materially increase v1 complexity.
+
+# 32. Production / Demo Hosting Strategy
+
+The v1 platform SHOULD support a production-like demonstration environment that uses real platform boundaries rather than mocked architecture.
+
+## 32.1 Demo / interview environment
+
+The demo environment SHOULD include:
+
+- real PostgreSQL + pgvector;
+- real LLM provider access through the Gateway;
+- real Agent Runtime;
+- real policy/authorization enforcement;
+- real RAG provenance;
+- real Tool/MCP governance;
+- real causal tracing;
+- real cost/usage attribution where provider data permits;
+- Terraform provisioning;
+- CI/CD promotion through staging.
+
+The demo environment MAY use smaller compute, fewer replicas, and simplified availability characteristics than production.
+
+## 32.2 Enterprise production target
+
+The architecture MUST allow the same logical contracts to scale toward enterprise requirements including high availability, backups, stronger network controls, managed identity, horizontal scaling, operational SLOs, and disaster recovery.
+
+The demo MUST NOT claim production-scale availability characteristics that are not actually deployed.
+
+# 33. Implementation Phases
+
+Implementation MUST proceed in dependency order and MUST preserve the specification/ADR traceability model.
+
+## Phase 1 — Platform foundation
+
+- monorepo and service/module structure;
+- Node.js/TypeScript and Python runtime foundations;
+- shared contracts;
+- PostgreSQL + pgvector;
+- configuration and service identity foundations;
+- CI baseline.
+
+## Phase 2 — Control Plane
+
+- artifact/version registry;
+- Agent registry;
+- dependency graph;
+- policy/version management;
+- RBAC/auditor boundaries;
+- initial evaluation model.
+
+## Phase 3 — Execution Plane
+
+- API/Edge;
+- LLM Gateway;
+- Model Router;
+- Agent Runtime;
+- RAG Runtime;
+- Tool/MCP Runtime.
+
+## Phase 4 — Governance and evidence
+
+- security controls;
+- evaluation execution and release gates;
+- causal observability;
+- audit evidence;
+- FinOps and business-value attribution.
+
+## Phase 5 — Enterprise integrations
+
+- Marketplace;
+- MCP ecosystem integration;
+- Copilot Studio connector/API;
+- secure Node.js/Python service-to-service communication.
+
+## Phase 6 — Production engineering
+
+- Terraform modules;
+- environment promotion;
+- staging/production deployment;
+- operational hardening;
+- backup/recovery controls;
+- final release gates.
+
+Each phase MUST have implementation tests and acceptance evidence before dependent phases are treated as complete.
+
+# 34. Final v1 System Acceptance Criteria
+
+The following criteria validate the platform as a coherent system rather than isolated components.
+
+- **AC-V1-001:** A registered, immutable Agent version can execute through the governed runtime.
+- **AC-V1-002:** Every production-path LLM invocation is attributable to an LLM Gateway request and routing decision.
+- **AC-V1-003:** An execution can retrieve authorized versioned knowledge and expose provenance for the material retrieved sources.
+- **AC-V1-004:** A tool action cannot execute without the required authorization and approval controls.
+- **AC-V1-005:** The execution record identifies material Agent, policy, model, knowledge, tool, and deployment versions used by the workflow.
+- **AC-V1-006:** A causal investigation can reconstruct material decision/dependency relationships rather than only a chronological log sequence.
+- **AC-V1-007:** A material dependency change can produce direct/transitive impact evidence.
+- **AC-V1-008:** Security, evaluation, or governance release gates can block promotion when the applicable policy requires it.
+- **AC-V1-009:** Usage/cost can be attributed to an execution or workflow where source usage data permits.
+- **AC-V1-010:** Business-value evidence remains separately attributable from infrastructure and model cost evidence.
+- **AC-V1-011:** Marketplace discovery does not itself grant execution authorization.
+- **AC-V1-012:** Copilot Studio can invoke AI Nexus through the approved external boundary without bypassing AI Nexus authorization.
+- **AC-V1-013:** Node.js and Python services communicate through authenticated, versioned, language-neutral contracts.
+- **AC-V1-014:** A Python worker cannot create an uncontrolled direct-to-provider LLM path.
+- **AC-V1-015:** The v1 infrastructure can be provisioned through Terraform using environment-controlled configuration.
+- **AC-V1-016:** A release can progress through CI/CD gates without requiring an architectural bypass.
+- **AC-V1-017:** Development, staging, and production environments have controlled separation.
+- **AC-V1-018:** Historical executions remain interpretable after newer artifact/policy/model/knowledge versions are released.
+- **AC-V1-019:** The v1 implementation can demonstrate the governed end-to-end workflow in the production-like demo environment.
+- **AC-V1-020:** Every implemented v1 requirement has traceability to an ADR, specification section, and implementation test or acceptance evidence.
+
+# 35. Final Traceability Model and Stage 3B Completion Criteria
+
+The implementation backlog and tests MUST be traceable through the following chain:
+
+```text
+Accepted ADR
+    ↓
+Requirement / Constraint
+    ↓
+Specification section
+    ↓
+Logical component / contract
+    ↓
+Implementation item
+    ↓
+Automated test / evaluation / security check
+    ↓
+Acceptance evidence
+```
+
+Stage 3B is considered sufficiently defined for implementation when:
+
+1. ADR-001 through ADR-018 remain the accepted architectural baseline.
+2. The single v1 specification covers all required Stage 3B subject areas.
+3. Every material v1 architectural requirement has an explicit requirement ID or acceptance criterion.
+4. Logical boundaries and cross-component contracts are defined sufficiently to assign implementation ownership.
+5. Data ownership and runtime responsibilities are defined without requiring premature physical microservice decomposition.
+6. Governance, security, evaluation, observability, FinOps, and integration controls have testable requirements.
+7. Deployment, IaC, CI/CD, scope, hosting, and implementation sequencing are defined.
+8. Remaining implementation questions are explicitly identified rather than hidden inside the specification.
+
+## Remaining implementation questions
+
+The following are intentionally deferred to implementation design and MUST be resolved before the affected component is coded:
+
+- exact PostgreSQL table schemas and migrations;
+- exact API schemas and serialization choices;
+- concrete LLM provider set and credentials/configuration;
+- concrete hosting provider/resource sizes;
+- exact observability backend and telemetry retention values;
+- exact Terraform module layout;
+- exact CI/CD platform/workflow files;
+- detailed evaluation datasets and thresholds for specific Agent types;
+- production SLO values where empirical load testing is required.
+
+These are implementation-level choices unless they expose a contradiction with an accepted ADR or this specification.
+
+# 36. Stage 3B Status
+
+**Status:** Specification sufficiently defined for implementation planning; implementation MUST begin only after final review of this specification and confirmation that no unresolved contradiction with ADR-001 through ADR-018 exists.
+
+**Version:** 0.6
+
+**Next stage:** Stage 4 — implementation planning and controlled platform build.
