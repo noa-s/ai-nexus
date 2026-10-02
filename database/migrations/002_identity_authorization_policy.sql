@@ -114,6 +114,10 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'policy versions are immutable';
+  END IF;
+
   IF OLD.policy_id IS DISTINCT FROM NEW.policy_id
     OR OLD.version IS DISTINCT FROM NEW.version
     OR OLD.artifact_type IS DISTINCT FROM NEW.artifact_type
