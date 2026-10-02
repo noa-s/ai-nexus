@@ -120,10 +120,15 @@ jobs:
             exit 1
           fi
           echo "Policy version deletion was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE policy.policy_version;"; then
+            echo "Policy version truncation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Policy version truncation was correctly rejected."
       - name: Verify immutable audit evidence
         run: |
           echo "Verifying immutable audit evidence..."
-          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO \"authorization\".event(event_id, event_type, tenant_id) VALUES ('00000000-0000-0000-0000-000000000001', 'AUTHORIZATION_DENIED', 'ci-tenant') ON CONFLICT DO NOTHING;"
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO \"authorization\".event(event_id, event_type, tenant_id, action, target, reason_code) VALUES ('00000000-0000-0000-0000-000000000001', 'AUTHORIZATION_DENIED', 'ci-tenant', 'resource.read', 'protected-resource', 'CI_TEST') ON CONFLICT DO NOTHING;"
           if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE \"authorization\".event SET event_type = 'TAMPERED' WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
             echo "Audit evidence mutation unexpectedly succeeded"
             exit 1
@@ -134,6 +139,11 @@ jobs:
             exit 1
           fi
           echo "Audit evidence deletion was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE \"authorization\".event;"; then
+            echo "Audit evidence truncation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Audit evidence truncation was correctly rejected."
       - name: Cleanup
         if: always()
         run: |
