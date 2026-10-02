@@ -33,6 +33,20 @@ jobs:
       - run: python -m compileall -q src tests
       - run: PYTHONPATH=src python -m unittest discover -s tests
 
+  database-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start PostgreSQL with pgvector
+        run: docker compose up -d postgres
+      - name: Apply initial migration
+        run: docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/001_initial_platform.sql
+      - name: Verify pgvector
+        run: docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
   repository-safety:
     runs-on: ubuntu-latest
     steps:
