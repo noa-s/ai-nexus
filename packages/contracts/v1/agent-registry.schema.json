@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/agent-registry.schema.json",
+  "title": "AI Nexus v1 Agent Registry Contract",
+  "type": "object",
+  "required": ["schemaVersion", "agentId", "artifactType", "version", "tenantId", "policyReferences", "dependencies"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "agentId": { "type": "string", "minLength": 1 },
+    "artifactType": { "const": "agent" },
+    "version": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "policyReferences": { "type": "array", "items": { "$ref": "#/$defs/policyReference" } },
+    "dependencies": { "type": "array", "items": { "$ref": "#/$defs/dependencyReference" } },
+    "declaredCapabilities": { "type": "array", "items": { "type": "string" } },
+    "declaredTasks": { "type": "array", "items": { "type": "string" } },
+    "deploymentStatus": { "type": "string", "minLength": 1 },
+    "accessRequirements": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "policyReference": {
+      "type": "object",
+      "required": ["policyId", "policyVersion", "policyType", "relationship", "context"],
+      "properties": {
+        "policyId": { "type": "string", "minLength": 1 },
+        "policyVersion": { "type": "string", "minLength": 1 },
+        "policyType": { "type": "string", "minLength": 1 },
+        "relationship": { "type": "string", "minLength": 1 },
+        "context": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "dependencyReference": {
+      "type": "object",
+      "required": ["sourceArtifactType", "sourceArtifactId", "sourceVersion", "targetArtifactType", "targetArtifactId", "relationshipType", "consumerOwnerReference", "declarationOrigin"],
+      "properties": {
+        "sourceArtifactType": { "type": "string", "minLength": 1 },
+        "sourceArtifactId": { "type": "string", "minLength": 1 },
+        "sourceVersion": { "type": "string", "minLength": 1 },
+        "targetArtifactType": { "type": "string", "minLength": 1 },
+        "targetArtifactId": { "type": "string", "minLength": 1 },
+        "targetVersion": { "type": "string", "minLength": 1 },
+        "targetVersionConstraint": { "type": "string", "minLength": 1 },
+        "relationshipType": { "enum": ["runtime", "governance"] },
+        "consumerOwnerReference": { "type": "string", "minLength": 1 },
+        "declarationOrigin": { "type": "string", "minLength": 1 },
+        "sourceRepositoryLocation": { "type": "string", "minLength": 1 }
+      },
+      "oneOf": [{ "required": ["targetVersion"] }, { "required": ["targetVersionConstraint"] }],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
