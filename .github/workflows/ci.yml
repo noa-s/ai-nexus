@@ -50,11 +50,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start PostgreSQL with pgvector
-        run: docker compose up -d postgres
+        run: |
+          echo "Starting PostgreSQL with pgvector..."
+          docker compose up -d postgres
       - name: Wait for PostgreSQL readiness
         run: |
+          echo "Waiting for PostgreSQL readiness..."
           for attempt in $(seq 1 30); do
             if docker compose exec -T postgres pg_isready -U ai_nexus -d ai_nexus; then
+              echo "PostgreSQL is ready."
               exit 0
             fi
             sleep 2
@@ -62,9 +66,15 @@ jobs:
           echo "PostgreSQL did not become ready"
           exit 1
       - name: Apply initial migration
-        run: docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/001_initial_platform.sql
+        run: |
+          echo "Applying initial database migration..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/001_initial_platform.sql
+          echo "Initial database migration applied."
       - name: Verify pgvector
-        run: docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
+        run: |
+          echo "Verifying pgvector extension..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
+          echo "pgvector verification completed."
       - name: Cleanup
         if: always()
         run: docker compose down -v
