@@ -7,8 +7,8 @@
   "required": ["edgeId", "source", "target", "relationshipType", "consumerOwnerReference", "declarationOrigin", "analyzerVersion"],
   "properties": {
     "edgeId": { "type": "string", "minLength": 1 },
-    "source": { "$ref": "artifact-version.schema.json" },
-    "target": { "$ref": "artifact-version.schema.json" },
+    "source": { "$ref": "dependency-node.schema.json" },
+    "target": { "$ref": "dependency-node.schema.json" },
     "targetVersionConstraint": { "type": "string", "minLength": 1 },
     "relationshipType": { "type": "string", "enum": ["runtime", "governance"] },
     "consumerOwnerReference": { "type": "string", "minLength": 1 },
@@ -16,5 +16,13 @@
     "sourceRepositoryLocation": { "type": "string", "minLength": 1 },
     "analyzerVersion": { "type": "string", "minLength": 1 },
     "tenantId": { "type": "string", "minLength": 1 }
-  }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        { "not": { "required": ["targetVersionConstraint"] } },
+        { "required": ["targetVersionConstraint"] }
+      ]
+    }
+  ]
 }
