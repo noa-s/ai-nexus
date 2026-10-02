@@ -11,15 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build Node API container
-        run: docker compose build api-edge
+        run: |
+          echo "Building Node API container..."
+          docker compose build api-edge
+          echo "Node API container build completed."
       - name: Run Node tests in container
-        run: docker compose run --rm api-edge npm test --workspace @ai-nexus/api-edge
+        run: |
+          echo "Running Node tests in container..."
+          docker compose run --rm api-edge npm test --workspace @ai-nexus/api-edge
+          echo "Node tests completed."
       - name: Start Node API container
-        run: docker compose up -d postgres api-edge
+        run: |
+          echo "Starting Node API container..."
+          docker compose up -d postgres api-edge
+          echo "Node API container started."
       - name: Wait for API readiness
         run: |
+          echo "Waiting for API readiness..."
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://localhost:3000/health; then
+              echo "API Edge is ready."
               exit 0
             fi
             sleep 2
@@ -29,21 +40,36 @@ jobs:
           exit 1
       - name: Cleanup
         if: always()
-        run: docker compose down -v
+        run: |
+          echo "Cleaning up Node API resources..."
+          docker compose down -v
+          echo "Node API cleanup completed."
 
   python-foundation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Build Python worker container
-        run: docker compose build ai-data-worker
+        run: |
+          echo "Building Python worker container..."
+          docker compose build ai-data-worker
+          echo "Python worker container build completed."
       - name: Run Python tests in container
-        run: docker compose run --rm ai-data-worker python -m unittest discover -s tests
+        run: |
+          echo "Running Python tests in container..."
+          docker compose run --rm ai-data-worker python -m unittest discover -s tests
+          echo "Python tests completed."
       - name: Run Python compile check in container
-        run: docker compose run --rm ai-data-worker python -m compileall -q src tests
+        run: |
+          echo "Running Python compile check in container..."
+          docker compose run --rm ai-data-worker python -m compileall -q src tests
+          echo "Python compile check completed."
       - name: Cleanup
         if: always()
-        run: docker compose down -v
+        run: |
+          echo "Cleaning up Python worker resources..."
+          docker compose down -v
+          echo "Python worker cleanup completed."
 
   database-foundation:
     runs-on: ubuntu-latest
@@ -77,7 +103,10 @@ jobs:
           echo "pgvector verification completed."
       - name: Cleanup
         if: always()
-        run: docker compose down -v
+        run: |
+          echo "Cleaning up PostgreSQL resources..."
+          docker compose down -v
+          echo "PostgreSQL cleanup completed."
 
   repository-safety:
     runs-on: ubuntu-latest
