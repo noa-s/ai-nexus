@@ -101,10 +101,16 @@ CREATE TABLE IF NOT EXISTS "authorization".event (
   event_type TEXT NOT NULL,
   principal_id TEXT,
   workload_id TEXT,
+  agent_id TEXT,
   tenant_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target TEXT NOT NULL,
   resource_ref TEXT,
   request_id TEXT,
   decision_id UUID REFERENCES "authorization".decision(decision_id),
+  decision TEXT CHECK (decision IN ('ALLOW', 'DENY', 'APPROVAL_REQUIRED')),
+  reason_code TEXT NOT NULL,
+  policy_versions JSONB NOT NULL DEFAULT '[]'::jsonb,
   trace_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -134,6 +140,20 @@ CREATE TRIGGER policy_version_immutable
 BEFORE UPDATE OR DELETE ON policy.policy_version
 FOR EACH ROW EXECUTE FUNCTION policy.prevent_policy_version_mutation();
 
+CREATE OR REPLACE FUNCTION policy.prevent_policy_version_truncate()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'policy versions are immutable';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS policy_version_truncate_immutable ON policy.policy_version;
+CREATE TRIGGER policy_version_truncate_immutable
+BEFORE TRUNCATE ON policy.policy_version
+FOR EACH STATEMENT EXECUTE FUNCTION policy.prevent_policy_version_truncate();
+
 CREATE OR REPLACE FUNCTION "authorization".prevent_event_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -147,6 +167,20 @@ DROP TRIGGER IF EXISTS authorization_event_immutable ON "authorization".event;
 CREATE TRIGGER authorization_event_immutable
 BEFORE UPDATE OR DELETE ON "authorization".event
 FOR EACH ROW EXECUTE FUNCTION "authorization".prevent_event_mutation();
+
+CREATE OR REPLACE FUNCTION "authorization".prevent_event_truncate()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'authorization evidence is immutable';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS authorization_event_truncate_immutable ON "authorization".event;
+CREATE TRIGGER authorization_event_truncate_immutable
+BEFORE TRUNCATE ON "authorization".event
+FOR EACH STATEMENT EXECUTE FUNCTION "authorization".prevent_event_truncate();
 
 INSERT INTO platform.schema_metadata (key, value)
 VALUES ('migration_version', '002')
