@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/dependency-reference.schema.json",
+  "title": "DependencyReference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceArtifactType", "sourceArtifactId", "sourceVersion", "targetArtifactType", "targetArtifactId", "relationshipType", "consumerOwnerReference", "declarationOrigin"],
+  "properties": {
+    "sourceArtifactType": { "type": "string", "minLength": 1 },
+    "sourceArtifactId": { "type": "string", "minLength": 1 },
+    "sourceVersion": { "type": "string", "minLength": 1 },
+    "targetArtifactType": { "type": "string", "minLength": 1 },
+    "targetArtifactId": { "type": "string", "minLength": 1 },
+    "targetVersion": { "type": "string", "minLength": 1 },
+    "targetVersionConstraint": { "type": "string", "minLength": 1 },
+    "relationshipType": { "type": "string", "enum": ["runtime", "governance"] },
+    "consumerOwnerReference": { "type": "string", "minLength": 1 },
+    "declarationOrigin": { "type": "string", "minLength": 1 },
+    "sourceRepositoryLocation": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        { "required": ["targetVersion"], "not": { "required": ["targetVersionConstraint"] } },
+        { "required": ["targetVersionConstraint"], "not": { "required": ["targetVersion"] } }
+      ]
+    }
+  ]
+}

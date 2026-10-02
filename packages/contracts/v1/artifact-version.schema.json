@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/artifact-version.schema.json",
+  "title": "ArtifactVersion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifactType", "artifactId", "version", "content", "contentDigest", "lifecycleStatus"],
+  "properties": {
+    "artifactType": { "type": "string", "enum": ["agent", "prompt", "policy", "knowledge", "tool", "model-capability", "evaluation-suite", "platform-component"] },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "content": { "type": "object" },
+    "contentDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "lifecycleStatus": { "type": "string", "enum": ["DRAFT", "VALIDATING", "APPROVED", "PUBLISHED", "DEPRECATED", "ARCHIVED", "REVOKED"] }
+  }
+}
