@@ -51,6 +51,12 @@ export function authorize(
     decision: "DENY",
     reasonCode,
     requestId: request.requestId,
+    tenantId: request.tenantId,
+    actor: request.actor,
+    workload: request.workload,
+    agent: request.agent,
+    action: request.action,
+    target: request.target,
     policyVersions: policies.map((policy) => `${policy.id}@${policy.version}`),
     evaluatedAt,
     traceId,
@@ -76,6 +82,12 @@ export function authorize(
     decision: "ALLOW",
     reasonCode: applicable.length ? "AUTHORIZED_BY_RBAC_AND_POLICY" : "AUTHORIZED_BY_RBAC",
     requestId: request.requestId,
+    tenantId: request.tenantId,
+    actor: request.actor,
+    workload: request.workload,
+    agent: request.agent,
+    action: request.action,
+    target: request.target,
     policyVersions: applicable.map((policy) => `${policy.id}@${policy.version}`),
     evaluatedAt,
     traceId,
@@ -91,6 +103,7 @@ export function authorizeServiceCall(
   traceId?: string,
 ): AuthorizationResult {
   const resolvedRequestId = requestId ?? randomUUID();
+  const target = `service:${targetService}`;
 
   if (identity.principalType !== "workload" || !identity.workloadId) {
     return {
@@ -98,6 +111,10 @@ export function authorizeServiceCall(
       decision: "DENY",
       reasonCode: "WORKLOAD_IDENTITY_REQUIRED",
       requestId: resolvedRequestId,
+      tenantId: identity.tenantId,
+      workload: identity.workloadId,
+      action,
+      target,
       policyVersions: [],
       evaluatedAt: new Date().toISOString(),
       traceId,
@@ -109,7 +126,7 @@ export function authorizeServiceCall(
     tenantId: identity.tenantId,
     workload: identity.workloadId,
     action,
-    target: `service:${targetService}`,
+    target,
     purpose: "service-to-service",
   }, policySet, traceId);
 }
