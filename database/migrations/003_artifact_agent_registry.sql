@@ -29,24 +29,22 @@ CREATE TABLE IF NOT EXISTS registry.agent_version (
   model_capability_references JSONB NOT NULL DEFAULT '[]'::jsonb, tool_references JSONB NOT NULL DEFAULT '[]'::jsonb,
   knowledge_configuration_references JSONB NOT NULL DEFAULT '[]'::jsonb, evaluation_status_reference TEXT,
   deployment_status TEXT NOT NULL DEFAULT 'UNDEPLOYED', access_requirements JSONB NOT NULL DEFAULT '[]'::jsonb,
+  governance_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (governance_status IN ('PENDING', 'ELIGIBLE', 'NOT_ELIGIBLE')),
   created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (agent_id, version),
   FOREIGN KEY (artifact_type, agent_id, version) REFERENCES registry.artifact_version(artifact_type, artifact_id, version)
 );
 
 CREATE TABLE IF NOT EXISTS registry.agent_policy_reference (
   agent_id TEXT NOT NULL, agent_version TEXT NOT NULL, policy_id TEXT NOT NULL, policy_version TEXT NOT NULL, policy_type TEXT NOT NULL,
-  relationship TEXT NOT NULL, context TEXT NOT NULL,
-  PRIMARY KEY (agent_id, agent_version, policy_id, policy_version, relationship, context),
-  FOREIGN KEY (agent_id, agent_version) REFERENCES registry.agent_version(agent_id, version),
-  FOREIGN KEY (policy_id, policy_version) REFERENCES policy.policy_version(policy_id, version)
+  relationship TEXT NOT NULL, context TEXT NOT NULL, PRIMARY KEY (agent_id, agent_version, policy_id, policy_version, relationship, context),
+  FOREIGN KEY (agent_id, agent_version) REFERENCES registry.agent_version(agent_id, version), FOREIGN KEY (policy_id, policy_version) REFERENCES policy.policy_version(policy_id, version)
 );
 
 CREATE TABLE IF NOT EXISTS registry.declared_dependency (
   source_artifact_type TEXT NOT NULL, source_artifact_id TEXT NOT NULL, source_version TEXT NOT NULL,
   target_artifact_type TEXT NOT NULL CHECK (target_artifact_type IN ('agent', 'prompt', 'policy', 'knowledge', 'tool', 'model-capability', 'evaluation-suite', 'platform-component')),
-  target_artifact_id TEXT NOT NULL, target_version TEXT, target_version_constraint TEXT,
-  relationship_type TEXT NOT NULL CHECK (relationship_type IN ('runtime', 'governance')), consumer_owner_reference TEXT NOT NULL,
-  declaration_origin TEXT NOT NULL, source_repository_location TEXT,
+  target_artifact_id TEXT NOT NULL, target_version TEXT, target_version_constraint TEXT, relationship_type TEXT NOT NULL CHECK (relationship_type IN ('runtime', 'governance')),
+  consumer_owner_reference TEXT NOT NULL, declaration_origin TEXT NOT NULL, source_repository_location TEXT,
   PRIMARY KEY (source_artifact_type, source_artifact_id, source_version, target_artifact_type, target_artifact_id, relationship_type, declaration_origin),
   CHECK ((target_version IS NOT NULL) <> (target_version_constraint IS NOT NULL)),
   FOREIGN KEY (source_artifact_type, source_artifact_id, source_version) REFERENCES registry.artifact_version(artifact_type, artifact_id, version)
