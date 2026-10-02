@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [staging, master]
+
+jobs:
+  node-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Node API container
+        run: |
+          echo "Building Node API container..."
+          docker compose build api-edge
+          echo "Node API container build completed."
+      - name: Run Node tests in container
+        run: |
+          echo "Running Node tests in container..."
+          docker compose run --rm api-edge npm test --workspace @ai-nexus/api-edge
+          echo "Node tests completed."
+      - name: Start Node API container
+        run: |
+          echo "Starting Node API container..."
+          docker compose up -d postgres api-edge
+          echo "Node API container started."
+      - name: Wait for API readiness
+        run: |
+          echo "Waiting for API readiness..."
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3000/health; then
+              echo "API Edge is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API Edge did not become ready"
+          docker compose logs api-edge
+          exit 1
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up Node API resources..."
+          docker compose down -v
+          echo "Node API cleanup completed."
+
+  python-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Python worker container
+        run: |
+          echo "Building Python worker container..."
+          docker compose build ai-data-worker
+          echo "Python worker container build completed."
+      - name: Run Python tests in container
+        run: |
+          echo "Running Python tests in container..."
+          docker compose run --rm ai-data-worker python -m unittest discover -s tests
+          echo "Python tests completed."
+      - name: Run Python compile check in container
+        run: |
+          echo "Running Python compile check in container..."
+          docker compose run --rm ai-data-worker python -m compileall -q src tests
+          echo "Python compile check completed."
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up Python worker resources..."
+          docker compose down -v
+          echo "Python worker cleanup completed."
+
+  database-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start PostgreSQL with pgvector
+        run: |
+          echo "Starting PostgreSQL with pgvector..."
+          docker compose up -d postgres
+      - name: Wait for PostgreSQL readiness
+        run: |
+          echo "Waiting for PostgreSQL readiness..."
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U ai_nexus -d ai_nexus; then
+              echo "PostgreSQL is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready"
+          exit 1
+      - name: Apply initial migration
+        run: |
+          echo "Applying initial database migration..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/001_initial_platform.sql
+          echo "Initial database migration applied."
+      - name: Verify pgvector
+        run: |
+          echo "Verifying pgvector extension..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
+          echo "pgvector verification completed."
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up PostgreSQL resources..."
+          docker compose down -v
+          echo "PostgreSQL cleanup completed."
+
+  repository-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for obvious private key material
+        run: |
+          if grep -R -n --exclude-dir=.git --exclude='*.md' -E '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' .; then
+            echo "Private key material detected"
+            exit 1
+          fi

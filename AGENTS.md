@@ -218,3 +218,7 @@ Changes to these rules require review and approval through the repository's norm
 ## 21. Detailed governance
 
 This file is the concise repository-level contract. Detailed agent governance, decision matrices, approval boundaries, and examples may be maintained under `docs/governance/` and must remain consistent with this document and the approved architectural baseline.
+
+## 22. Agent instruction-file changes
+
+Instruction and governance files such as `AGENTS.md` and equivalent agent instruction files are governed artifacts. Agents MUST NOT modify, rewrite, delete, or weaken such instruction files on their own. Changes to these files require an explicit human request or explicit human approval before the change is made.

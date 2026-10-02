@@ -1,0 +1,6 @@
+[project]
+name = "ai-nexus-ai-data-worker"
+version = "0.1.0"
+description = "Python worker foundation for AI Nexus data and evaluation workloads"
+requires-python = ">=3.11,<3.13"
+dependencies = []
