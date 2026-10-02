@@ -105,3 +105,20 @@ Promotion into `AGENTS.md` should require review for:
 The Stage 3B work demonstrated why the distinction matters: Data Architecture and Runtime Architecture were initially prepared as a separate staged deliverable even though the project had already established a single authoritative v1 specification. The correct approach is to keep those sections inside the existing specification and use the ADRs as referenced architectural authority.
 
 This lesson should be considered a candidate for future inclusion in `AGENTS.md`, subject to review.
+
+## 10. Make consistency requests comparative, not local
+
+When a human asks for consistency across analogous components, inspect the complete set of analogous components before changing any one of them. Establish the common behavior from the existing implementations, then update the members that are inconsistent. Do not interpret the request as applying only to the component mentioned in the observation.
+
+For CI or infrastructure in particular, compare the full lifecycle of peer jobs/services, including setup, observable progress, validation, failure diagnostics, cleanup, and resource release.
+
+## 11. Review implementation changes against peer behavior
+
+Before declaring a change complete, compare the modified artifact against its closest peers for naming, lifecycle, cleanup, execution environment, logging, and validation patterns. Consistency should be verified by evidence from the repository, not inferred from the requested symptom alone.
+
+## 12. Instruction files are governance boundaries
+
+Instruction files such as `AGENTS.md` and equivalent agent-instruction documents are not ordinary implementation artifacts. An agent must not modify, rewrite, delete, or weaken them unless a human explicitly requests the change or explicitly approves the proposed change.
+
+This is separate from the implementation lessons above: lessons may be proposed in this document without becoming binding agent instructions.
+
