@@ -1,5 +1,5 @@
 CREATE SCHEMA IF NOT EXISTS identity;
-CREATE SCHEMA IF NOT EXISTS authorization;
+CREATE SCHEMA IF NOT EXISTS "authorization";
 CREATE SCHEMA IF NOT EXISTS policy;
 
 CREATE TABLE IF NOT EXISTS identity.principal (
@@ -18,34 +18,34 @@ CREATE TABLE IF NOT EXISTS identity.workload (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS authorization.role (
+CREATE TABLE IF NOT EXISTS "authorization".role (
   role_name TEXT PRIMARY KEY,
   description TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS authorization.permission (
+CREATE TABLE IF NOT EXISTS "authorization".permission (
   permission_id TEXT PRIMARY KEY,
   action TEXT NOT NULL,
   target TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS authorization.role_permission (
-  role_name TEXT NOT NULL REFERENCES authorization.role(role_name),
-  permission_id TEXT NOT NULL REFERENCES authorization.permission(permission_id),
+CREATE TABLE IF NOT EXISTS "authorization".role_permission (
+  role_name TEXT NOT NULL REFERENCES "authorization".role(role_name),
+  permission_id TEXT NOT NULL REFERENCES "authorization".permission(permission_id),
   PRIMARY KEY (role_name, permission_id)
 );
 
-CREATE TABLE IF NOT EXISTS authorization.role_assignment (
+CREATE TABLE IF NOT EXISTS "authorization".role_assignment (
   principal_id TEXT NOT NULL REFERENCES identity.principal(principal_id),
-  role_name TEXT NOT NULL REFERENCES authorization.role(role_name),
+  role_name TEXT NOT NULL REFERENCES "authorization".role(role_name),
   tenant_id TEXT NOT NULL,
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (principal_id, role_name, tenant_id)
 );
 
-CREATE TABLE IF NOT EXISTS authorization.service_permission (
+CREATE TABLE IF NOT EXISTS "authorization".service_permission (
   caller_workload_id TEXT NOT NULL REFERENCES identity.workload(workload_id),
   target_service TEXT NOT NULL,
   action TEXT NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS policy.policy_assignment (
   FOREIGN KEY (policy_id, policy_version) REFERENCES policy.policy_version(policy_id, version)
 );
 
-CREATE TABLE IF NOT EXISTS authorization.decision (
+CREATE TABLE IF NOT EXISTS "authorization".decision (
   decision_id UUID PRIMARY KEY,
   request_id TEXT NOT NULL,
   decision TEXT NOT NULL CHECK (decision IN ('ALLOW', 'DENY', 'APPROVAL_REQUIRED')),
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS authorization.decision (
   evaluated_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS authorization.event (
+CREATE TABLE IF NOT EXISTS "authorization".event (
   event_id UUID PRIMARY KEY,
   event_type TEXT NOT NULL,
   principal_id TEXT,
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS authorization.event (
   tenant_id TEXT NOT NULL,
   resource_ref TEXT,
   request_id TEXT,
-  decision_id UUID REFERENCES authorization.decision(decision_id),
+  decision_id UUID REFERENCES "authorization".decision(decision_id),
   trace_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -134,7 +134,7 @@ CREATE TRIGGER policy_version_immutable
 BEFORE UPDATE OR DELETE ON policy.policy_version
 FOR EACH ROW EXECUTE FUNCTION policy.prevent_policy_version_mutation();
 
-CREATE OR REPLACE FUNCTION authorization.prevent_event_mutation()
+CREATE OR REPLACE FUNCTION "authorization".prevent_event_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
@@ -143,10 +143,10 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS authorization_event_immutable ON authorization.event;
+DROP TRIGGER IF EXISTS authorization_event_immutable ON "authorization".event;
 CREATE TRIGGER authorization_event_immutable
-BEFORE UPDATE OR DELETE ON authorization.event
-FOR EACH ROW EXECUTE FUNCTION authorization.prevent_event_mutation();
+BEFORE UPDATE OR DELETE ON "authorization".event
+FOR EACH ROW EXECUTE FUNCTION "authorization".prevent_event_mutation();
 
 INSERT INTO platform.schema_metadata (key, value)
 VALUES ('migration_version', '002')
