@@ -96,11 +96,54 @@ jobs:
           echo "Applying initial database migration..."
           docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/001_initial_platform.sql
           echo "Initial database migration applied."
+      - name: Apply identity authorization policy migration
+        run: |
+          echo "Applying identity authorization policy migration..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/002_identity_authorization_policy.sql
+          echo "Identity authorization policy migration applied."
       - name: Verify pgvector
         run: |
           echo "Verifying pgvector extension..."
           docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
           echo "pgvector verification completed."
+      - name: Verify policy lifecycle and immutability
+        run: |
+          echo "Verifying policy lifecycle and immutable content..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO policy.policy(policy_id, policy_type) VALUES ('ci-policy', 'access') ON CONFLICT DO NOTHING; INSERT INTO policy.policy_version(policy_id, version, content, lifecycle_status) VALUES ('ci-policy', '1', '{\"action\":\"read\"}', 'DRAFT') ON CONFLICT DO NOTHING; UPDATE policy.policy_version SET lifecycle_status = 'ACTIVE' WHERE policy_id = 'ci-policy' AND version = '1';"
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE policy.policy_version SET content = '{\"action\":\"write\"}' WHERE policy_id = 'ci-policy' AND version = '1';"; then
+            echo "Policy content mutation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Policy content mutation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM policy.policy_version WHERE policy_id = 'ci-policy' AND version = '1';"; then
+            echo "Policy version deletion unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Policy version deletion was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE policy.policy_version;"; then
+            echo "Policy version truncation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Policy version truncation was correctly rejected."
+      - name: Verify immutable audit evidence
+        run: |
+          echo "Verifying immutable audit evidence..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO \"authorization\".event(event_id, event_type, tenant_id, action, target, reason_code) VALUES ('00000000-0000-0000-0000-000000000001', 'AUTHORIZATION_DENIED', 'ci-tenant', 'resource.read', 'protected-resource', 'CI_TEST') ON CONFLICT DO NOTHING;"
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE \"authorization\".event SET event_type = 'TAMPERED' WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
+            echo "Audit evidence mutation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Audit evidence mutation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM \"authorization\".event WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
+            echo "Audit evidence deletion unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Audit evidence deletion was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE \"authorization\".event;"; then
+            echo "Audit evidence truncation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Audit evidence truncation was correctly rejected."
       - name: Cleanup
         if: always()
         run: |

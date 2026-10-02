@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/authorization-request.schema.json",
+  "title": "AI Nexus Authorization Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requestId", "tenantId", "action", "target"],
+  "properties": {
+    "requestId": { "type": "string", "minLength": 1 },
+    "actor": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "workload": { "type": "string", "minLength": 1 },
+    "agent": { "type": "string", "minLength": 1 },
+    "action": { "type": "string", "minLength": 1 },
+    "target": { "type": "string", "minLength": 1 },
+    "environment": { "type": "string", "minLength": 1 },
+    "dataClassification": { "type": "string", "minLength": 1 },
+    "policyVersions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "purpose": { "type": "string", "minLength": 1 }
+  }
+}

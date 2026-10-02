@@ -1,6 +1,6 @@
 # AI Nexus v1 — Implementation Plan
 
-- **Status:** Draft — Stage 4.2 — Step 02 Ready
+- **Status:** Draft — Stage 4.2 — Step 02 In Progress
 - **Version:** 0.3
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
@@ -124,11 +124,12 @@ The following is the **initial v1 execution order** derived from the accepted AD
 
 ### Phase 2 — Control Plane foundations
 
-**Step 02 — Identity, Authorization & Policy Foundation** — `READY`
+**Step 02 — Identity, Authorization & Policy Foundation** — `IN PROGRESS`
 
 - Depends on: Step 01
 - Detailed plan: `steps/02-identity-authorization-and-policy-foundation.md`
-- Establishes the shared authorization/policy boundary, workload/service identity authorization, immutable policy foundation, Auditor role boundary, and protected service-to-service communication before protected runtime capabilities.
+- Current branch: `impl/step-02-identity-authorization-policy-foundation-v2`
+- Establishes the shared authorization/policy boundary, workload/service identity authorization, immutable policy foundation, Auditor role boundary, protected service-to-service communication, and the initial language-neutral authorization contracts before protected runtime capabilities.
 
 **Step 03 — Artifact, Agent & Version Registry**
 
@@ -231,8 +232,8 @@ Stage 4 is complete only when:
 
 ## 9. Current implementation baseline
 
-Step 01 is complete and merged to `staging`. The repository now contains the executable foundation established by Step 01. Step 02 is the current controlled implementation step and its detailed execution contract is defined in `steps/02-identity-authorization-and-policy-foundation.md`.
+Step 01 is complete and merged to `staging`. Step 02 is now the current controlled implementation step. Its detailed execution contract is defined in `steps/02-identity-authorization-and-policy-foundation.md`.
 
-## 10. Next controlled action
+## 10. Current controlled action
 
-**Step 02 is READY.** Before implementation begins, inspect the Step 02 contract against the relevant accepted ADRs, the v1 specification, and the actual Step 01 repository state. Implementation must then proceed only within the Step 02 scope and Definition of Done.
+**Step 02 is IN PROGRESS.** Implementation must remain within the Step 02 scope and Definition of Done. No Step 03 work may begin until Step 02 is complete and verified on `staging`.
