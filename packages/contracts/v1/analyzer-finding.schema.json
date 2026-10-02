@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/analyzer-finding.schema.json",
+  "title": "AnalyzerFinding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "severity", "message"],
+  "properties": {
+    "code": { "type": "string", "minLength": 1 },
+    "severity": { "type": "string", "enum": ["INFO", "WARNING", "BLOCKING"] },
+    "message": { "type": "string", "minLength": 1 },
+    "repositoryPath": { "type": "string", "minLength": 1 },
+    "line": { "type": "integer", "minimum": 1 },
+    "column": { "type": "integer", "minimum": 1 },
+    "artifact": { "$ref": "dependency-node.schema.json" },
+    "dependency": { "$ref": "dependency-reference.schema.json" }
+  }
+}
