@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/agent-version.schema.json",
+  "title": "AgentVersion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["agentId", "version", "artifactVersion", "contentDigest", "declarationSchemaVersion", "lifecycleStatus"],
+  "properties": {
+    "agentId": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "artifactVersion": { "type": "string", "minLength": 1 },
+    "contentDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "declarationSchemaVersion": { "const": "1" },
+    "lifecycleStatus": { "type": "string", "enum": ["DRAFT", "VALIDATING", "APPROVED", "PUBLISHED", "DEPRECATED", "ARCHIVED", "REVOKED"] },
+    "capabilities": { "type": "object" },
+    "modelConstraints": { "type": "object" },
+    "toolReferences": { "type": "array", "items": { "type": "string" } },
+    "knowledgeReferences": { "type": "array", "items": { "type": "string" } },
+    "evaluationStatus": { "type": ["object", "null"] },
+    "deploymentStatus": { "type": ["object", "null"] },
+    "accessRequirements": { "type": ["object", "null"] }
+  }
+}
