@@ -1,6 +1,6 @@
 # ADR-007: Central LLM Gateway and Policy-Driven Model Routing
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
