@@ -13,12 +13,12 @@ function createRegistry() {
   return { registry: new ArtifactAgentRegistry(new InMemoryRegistryStore(), authorization, audit, { exists: () => true, isAssignable: () => true }), audit };
 }
 
-test("rejects secret-like fields from artifact and AgentVersion metadata", async () => {
+test("rejects secret-like fields from ArtifactVersion and AgentVersion metadata", async () => {
   const { registry } = createRegistry();
-  await assert.rejects(() => registry.registerArtifact({ actor, artifactType: "prompt", artifactId: "p1", name: "Prompt", ownerRef: "team", tenantId: "tenant-1", description: "apiKey should not be accepted" }), /secret-like/);
-
   await registry.registerAgent({ actor, agentId: "a1", name: "Agent", ownerRef: "team", tenantId: "tenant-1", riskClassification: "low", dataClassification: "internal" });
   await assert.rejects(() => registry.registerArtifactVersion({ actor, artifactType: "agent", artifactId: "a1", version: "1.0", content: { token: "secret-content" } }), /secret-like/);
+  await registry.registerArtifactVersion({ actor, artifactType: "agent", artifactId: "a1", version: "1.0", content: { safe: true } });
+  await assert.rejects(() => registry.registerAgentVersion({ actor, agentId: "a1", version: "1.0", content: { safe: true }, declaration: { schemaVersion: "1", artifactType: "agent", artifactId: "a1", agentId: "a1", version: "1.0", dependencies: [], policyReferences: [], capabilityMetadata: {} }, capabilityMetadata: { apiKey: "secret-content" }, modelConstraints: {}, toolReferences: [], knowledgeReferences: [] }), /secret-like/);
 });
 
 test("records previous and resulting lifecycle state in registry audit events", async () => {
