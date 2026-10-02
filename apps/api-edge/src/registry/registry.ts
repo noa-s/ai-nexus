@@ -145,16 +145,17 @@ export class ArtifactAgentRegistry {
   ) {}
 
   async registerArtifact(input: RegisterArtifactInput): Promise<ArtifactIdentity> {
-    await assertAuthorization(input.actor, this.authorization, "registry.artifact.create", `artifact:${input.artifactType}/${input.artifactId}`, this.audit, {
-      artifactType: input.artifactType,
-      artifactId: input.artifactId,
+    const { actor, lifecycleStatus, ...identityInput } = input;
+    await assertAuthorization(actor, this.authorization, "registry.artifact.create", `artifact:${identityInput.artifactType}/${identityInput.artifactId}`, this.audit, {
+      artifactType: identityInput.artifactType,
+      artifactId: identityInput.artifactId,
     });
-    assertNonEmpty(input.artifactId, "artifactId");
-    assertNonEmpty(input.name, "name");
-    if (input.tenantId !== input.actor.tenantId) throw new Error("tenant mismatch");
-    const identity: ArtifactIdentity = { ...input, lifecycleStatus: input.lifecycleStatus ?? "DRAFT" };
+    assertNonEmpty(identityInput.artifactId, "artifactId");
+    assertNonEmpty(identityInput.name, "name");
+    if (identityInput.tenantId !== actor.tenantId) throw new Error("tenant mismatch");
+    const identity: ArtifactIdentity = { ...identityInput, lifecycleStatus: lifecycleStatus ?? "DRAFT" };
     await this.store.createArtifact(identity);
-    this.auditMutation(input.actor, "registry.artifact.create", identity.artifactType, identity.artifactId);
+    this.auditMutation(actor, "registry.artifact.create", identity.artifactType, identity.artifactId);
     return identity;
   }
 
