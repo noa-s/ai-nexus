@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { authorize, type AuthorizationPolicySet } from "./authorization.js";
+import { recordAuthorizationEvent } from "./audit.js";
 import { verifySignedToken } from "./signed-token.js";
 import type { AuthorizationRequest, IdentityContext } from "./types.js";
 
@@ -49,6 +50,8 @@ export function requireAuthorization(
   };
 
   const result = authorize(identity, authorizationRequest, policySet, traceId);
+  recordAuthorizationEvent(identity, result);
+
   if (result.decision !== "ALLOW") {
     response.writeHead(403, { "content-type": "application/json", "x-request-id": requestId });
     response.end(JSON.stringify({ error: "forbidden", reasonCode: result.reasonCode, decisionId: result.decisionId, requestId }));
