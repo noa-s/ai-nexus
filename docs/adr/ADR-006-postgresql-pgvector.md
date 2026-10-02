@@ -1,6 +1,6 @@
 # ADR-006: PostgreSQL + pgvector as the Platform Data Foundation
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
