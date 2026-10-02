@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { InMemoryAuditEventStore } from "../src/auth/audit.js";
 import { InMemoryPolicyRegistry } from "../src/auth/policy-registry.js";
 import type { AuthorizationResult } from "../src/auth/types.js";
 import { ArtifactAgentRegistry, InMemoryRegistryAuditSink } from "../src/registry/registry.js";
@@ -7,17 +8,15 @@ import type { ArtifactDeclaration, RegistryActor } from "../src/registry/types.j
 
 const policyRegistry = new InMemoryPolicyRegistry([]);
 policyRegistry.createVersion({ policyId: "policy.agent-runtime", version: "1", lifecycleStatus: "ACTIVE", content: [] });
-
 const actor: RegistryActor = { subject: "service-registry", principalType: "workload", tenantId: "tenant-a", roles: ["service"], workloadId: "registry", requestId: "req-1", traceId: "trace-1" };
 const otherTenantActor: RegistryActor = { subject: "service-other", principalType: "workload", tenantId: "tenant-b", roles: ["service"], workloadId: "other" };
-const allow = (identity: RegistryActor, action: string, target: string): AuthorizationResult => ({ decisionId: `decision-${action}`, decision: "ALLOW", reasonCode: "TEST_ALLOWED", requestId: identity.requestId ?? "test-request", tenantId: identity.tenantId, workload: identity.workloadId, agent: identity.agentId, action, target, policyVersions: [], evaluatedAt: new Date().toISOString(), traceId: identity.traceId });
+const allow = (identity: RegistryActor, action: string, target: string): AuthorizationResult => ({ decisionId: `decision-${action}`, decision: "ALLOW", reasonCode: "TEST_ALLOWED", requestId: identity.requestId ?? "test-request", tenantId: identity.tenantId, workload: identity.workloadId, agent: identity.agentId, action, target, policyVersions: ["policy.registry@1"], evaluatedAt: new Date().toISOString(), traceId: identity.traceId });
 const deny = (_identity: RegistryActor, action: string, target: string): AuthorizationResult => ({ decisionId: `decision-${action}`, decision: "DENY", reasonCode: "POLICY_DENIED", requestId: "test-request", tenantId: "tenant-a", action, target, policyVersions: ["policy.registry@1"], evaluatedAt: new Date().toISOString() });
 const createRegistry = (authorizer = allow) => new ArtifactAgentRegistry({ policyRegistry, authorize: authorizer, auditSink: new InMemoryRegistryAuditSink() });
 
 const agentInput = { artifactId: "maintenance-agent", name: "Maintenance Agent", description: "Performs maintenance workflows", ownerId: "owner-a", tenantId: "tenant-a", businessUnit: "operations", lifecycleStatus: "DRAFT" as const, riskClassification: "medium", dataClassification: "internal" };
 const declaration: ArtifactDeclaration = {
-  schemaVersion: "1", artifactType: "agent", artifactId: "maintenance-agent", version: "1", agentId: "maintenance-agent",
-  declaredCapabilities: ["maintenance"], declaredTasks: ["diagnose"],
+  schemaVersion: "1", artifactType: "agent", artifactId: "maintenance-agent", version: "1", agentId: "maintenance-agent", declaredCapabilities: ["maintenance"], declaredTasks: ["diagnose"],
   policyReferences: [{ policyId: "policy.agent-runtime", policyVersion: "1", policyType: "access", relationship: "runtime", context: "maintenance" }],
   dependencies: [{ sourceArtifactType: "agent", sourceArtifactId: "maintenance-agent", sourceVersion: "1", targetArtifactType: "tool", targetArtifactId: "diagnostics", targetVersion: "1", relationshipType: "runtime", consumerOwnerReference: "owner-a", declarationOrigin: "artifact-metadata", sourceRepositoryLocation: "apps/api-edge/test/fixtures/maintenance-agent.artifact.ts" }],
 };
@@ -66,7 +65,18 @@ test("rejects non-active policy versions for new registrations", () => {
   assert.throws(() => registry.createAgentVersion(actor, declaration, { enabled: true }), /POLICY_VERSION_NOT_ASSIGNABLE/);
 });
 
-test("uses the shared authorization boundary and preserves its denial", () => {
-  const registry = createRegistry(deny);
+test("uses the shared authorization boundary and preserves denial evidence", () => {
+  const audit = new InMemoryAuditEventStore();
+  const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: deny, auditSink: new InMemoryRegistryAuditSink(), authorizationAuditStore: audit });
   assert.throws(() => registry.registerAgent(actor, agentInput), /POLICY_DENIED/);
+  assert.equal(audit.listByTenant("tenant-a").at(-1)?.eventType, "AUTHORIZATION_DENIED");
+});
+
+test("links allowed registry authorization to the existing audit boundary", () => {
+  const audit = new InMemoryAuditEventStore();
+  const registry = new ArtifactAgentRegistry({ policyRegistry, authorize: allow, auditSink: new InMemoryRegistryAuditSink(), authorizationAuditStore: audit });
+  registry.registerAgent(actor, agentInput);
+  const event = audit.listByTenant("tenant-a").at(-1);
+  assert.equal(event?.eventType, "AUTHORIZATION_DECISION");
+  assert.deepEqual(event?.policyVersions, ["policy.registry@1"]);
 });
