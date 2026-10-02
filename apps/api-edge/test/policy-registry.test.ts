@@ -25,9 +25,11 @@ test("enforces lifecycle and assignment rules", () => {
   });
   assert.throws(() => registry.assign({ consumerType: "service", consumerId: "svc-1", policyId: "policy.test", policyVersion: "1" }));
   registry.transitionLifecycle("policy.test", "1", "ACTIVE");
-  registry.assign({ consumerType: "service", consumerId: "svc-1", policyId: "policy.test", policyVersion: "1" });
+  const assignment = registry.assign({ consumerType: "service", consumerId: "svc-1", policyId: "policy.test", policyVersion: "1" });
   assert.equal(registry.getAssignmentHistory("service", "svc-1").length, 1);
-  assert.throws(() => registry.assign({ consumerType: "service", consumerId: "svc-1", policyId: "policy.test", policyVersion: "1" }));
+  const duplicate = registry.assign({ consumerType: "service", consumerId: "svc-1", policyId: "policy.test", policyVersion: "1" });
+  assert.deepEqual(duplicate, assignment);
+  assert.equal(registry.getAssignmentHistory("service", "svc-1").length, 1);
 });
 
 test("allows lifecycle transitions without changing policy content", () => {

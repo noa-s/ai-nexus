@@ -72,6 +72,11 @@ export class InMemoryPolicyRegistry implements PolicyRegistry {
     if (!version) throw new Error(`policy version not found: ${input.policyId}@${input.policyVersion}`);
     if (version.lifecycleStatus !== "ACTIVE") throw new Error(`only ACTIVE policies can be assigned: ${input.policyId}@${input.policyVersion}`);
 
+    const existing = this.assignments.find(
+      (a) => a.consumerType === input.consumerType && a.consumerId === input.consumerId && a.policyId === input.policyId && a.policyVersion === input.policyVersion,
+    );
+    if (existing) return existing;
+
     const assignment: PolicyAssignment = Object.freeze({
       ...input,
       assignedAt: new Date().toISOString(),
