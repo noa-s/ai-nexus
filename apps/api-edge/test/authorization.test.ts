@@ -30,21 +30,23 @@ test("signed workload identity token preserves workloadId and omits absent agent
     workloadId: "worker-1",
   };
   const token = createSignedToken(workloadIdentity, secret, 60, 1_700_000_000_000);
+  const verified = verifySignedToken(token, secret, 1_700_000_010_000);
 
-  assert.deepEqual(verifySignedToken(token, secret, 1_700_000_010_000), workloadIdentity);
-  assert.equal(Object.hasOwn(verifySignedToken(token, secret, 1_700_000_010_000)!, "agentId"), false);
+  assert.deepEqual(verified, workloadIdentity);
+  assert.equal(Object.hasOwn(verified!, "agentId"), false);
 });
 
-test("signed agent identity token preserves agentId and omits absent workloadId", () => {
+test("signed workload identity with agent context preserves agentId and omits absent workloadId", () => {
   const agentIdentity = {
     ...identity,
-    principalType: "agent" as const,
+    principalType: "workload" as const,
     agentId: "agent-1",
   };
   const token = createSignedToken(agentIdentity, secret, 60, 1_700_000_000_000);
+  const verified = verifySignedToken(token, secret, 1_700_000_010_000);
 
-  assert.deepEqual(verifySignedToken(token, secret, 1_700_000_010_000), agentIdentity);
-  assert.equal(Object.hasOwn(verifySignedToken(token, secret, 1_700_000_010_000)!, "workloadId"), false);
+  assert.deepEqual(verified, agentIdentity);
+  assert.equal(Object.hasOwn(verified!, "workloadId"), false);
 });
 
 test("authorization allows matching RBAC and policy constraints", () => {
