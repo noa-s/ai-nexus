@@ -243,6 +243,12 @@ The decision contract represents:
 - decision ID;
 - reason code;
 - request ID;
+- tenant/organization;
+- human actor reference when present;
+- workload reference when present;
+- Agent reference when applicable;
+- action/capability;
+- target/resource;
 - exact governing policy versions;
 - evaluation timestamp;
 - trace correlation.
@@ -253,7 +259,7 @@ The implementation provides a scoped evidence-read boundary for authorization ev
 
 Auditor access is authorized through the same RBAC/policy mechanism. Evidence is filtered to the Auditor's tenant scope. A successful evidence read emits an `AUDIT_READ` event containing the actor/workload, tenant, resource reference, request, trace, and policy context.
 
-The application uses an `AuditEventStore` boundary with a development in-memory implementation. PostgreSQL provides the persistent schema and protects stored evidence from update/delete mutation.
+The application uses an `AuditEventStore` boundary with a development in-memory implementation. PostgreSQL provides the persistent schema and protects stored evidence from mutation.
 
 This is a foundation for the future Auditor capability; it does not implement the complete enterprise investigation UI/Agent.
 
@@ -262,15 +268,18 @@ This is a foundation for the future Auditor capability; it does not implement th
 Authorization decisions produce audit events containing:
 
 - principal/workload reference;
+- Agent reference when applicable;
 - tenant;
 - request ID;
 - decision ID;
+- requested action;
+- target/resource;
 - decision/reason;
 - exact policy versions;
 - trace ID where available;
 - timestamp.
 
-The PostgreSQL audit table is protected against mutation. The audit store abstraction allows the storage implementation to be replaced without changing authorization behavior.
+The PostgreSQL audit table is protected against UPDATE, DELETE, and TRUNCATE mutation. The audit store abstraction allows the storage implementation to be replaced without changing authorization behavior.
 
 ## 13. Failure behavior
 
@@ -311,7 +320,7 @@ policy.policy_assignment
 
 Logical ownership remains explicit despite the shared physical PostgreSQL instance.
 
-Policy content/version identity is protected from UPDATE/DELETE mutation while lifecycle status remains changeable. Authorization evidence is protected from UPDATE/DELETE mutation.
+Policy content/version identity is protected from UPDATE/DELETE/TRUNCATE mutation while lifecycle status remains changeable. Authorization evidence is protected from UPDATE/DELETE/TRUNCATE mutation.
 
 ## 16. Security threat coverage
 
@@ -345,7 +354,8 @@ Tests MUST cover:
 - optional claims omitted when absent;
 - unsupported principal type rejected;
 - invalid signature rejected;
-- expired token rejected.
+- expired token rejected;
+- malformed required/optional identity claims rejected.
 
 ### RBAC / policy
 
@@ -387,8 +397,8 @@ CI MUST apply migrations 001 and 002. CI MUST verify:
 - pgvector availability;
 - Step 02 schema creation;
 - policy lifecycle status can change;
-- policy content cannot be changed/deleted;
-- audit evidence cannot be changed/deleted.
+- policy content cannot be changed/deleted/truncated;
+- audit evidence cannot be changed/deleted/truncated.
 
 ## 18. Acceptance criteria
 
