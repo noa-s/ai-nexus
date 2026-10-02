@@ -7,6 +7,7 @@ const schemaNames = [
   "agent-version.schema.json",
   "dependency-reference.schema.json",
   "registry-operation.schema.json",
+  "registry-result.schema.json",
 ] as const;
 
 test("registry contracts are valid JSON schemas with stable v1 identifiers", async () => {
