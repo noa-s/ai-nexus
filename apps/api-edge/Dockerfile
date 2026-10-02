@@ -7,12 +7,14 @@ COPY apps/api-edge/test ./apps/api-edge/test
 RUN npm ci
 RUN echo "=== workspace dependency diagnostics ===" \
     && npm ls typescript --all \
-    && echo "=== node_modules/.bin ===" \
-    && ls -la node_modules/.bin \
-    && echo "=== TypeScript executable ===" \
-    && node_modules/.bin/tsc --version \
-    && echo "=== workspace TypeScript executable ===" \
+    && echo "=== root node_modules/.bin ===" \
+    && (ls -la node_modules/.bin || true) \
+    && echo "=== workspace node_modules/.bin ===" \
+    && (ls -la apps/api-edge/node_modules/.bin || true) \
+    && echo "=== workspace TypeScript package ===" \
+    && (ls -la apps/api-edge/node_modules/typescript/bin/tsc || true) \
+    && echo "=== npm exec workspace TypeScript ===" \
     && npm exec --workspace @ai-nexus/api-edge -- tsc --version
-RUN npm run build --workspace @ai-nexus/api-edge
+RUN npm --workspace @ai-nexus/api-edge run build
 EXPOSE 3000
 CMD ["node", "apps/api-edge/dist/src/server.js"]
