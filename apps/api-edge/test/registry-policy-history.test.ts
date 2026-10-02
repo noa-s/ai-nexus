@@ -29,6 +29,8 @@ test("an already-registered AgentVersion remains referenceable when its policy b
   await registry.registerAgent({ actor, agentId: "policy-agent", name: "Policy Agent", ownerRef: "team", tenantId: "tenant-1", riskClassification: "low", dataClassification: "internal" });
   await registry.registerArtifactVersion({ actor, artifactType: "agent", artifactId: "policy-agent", version: "1.0", content });
   await registry.registerAgentVersion({ actor, agentId: "policy-agent", version: "1.0", content, declaration, capabilityMetadata: {}, modelConstraints: {}, toolReferences: [], knowledgeReferences: [], evaluationStatus: { reference: "evaluation://1" }, accessRequirements: {} });
+  await registry.transitionAgentVersion(actor, "policy-agent", "1.0", "VALIDATING");
+  await registry.transitionAgentVersion(actor, "policy-agent", "1.0", "APPROVED");
 
   assignable = false;
   assert.equal(await registry.isGovernedEligible(actor, "policy-agent", "1.0"), true);
