@@ -101,6 +101,11 @@ jobs:
           echo "Applying identity authorization policy migration..."
           docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/002_identity_authorization_policy.sql
           echo "Identity authorization policy migration applied."
+      - name: Apply artifact and agent registry migration
+        run: |
+          echo "Applying artifact and agent registry migration..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -f /dev/stdin < database/migrations/003_artifact_agent_registry.sql
+          echo "Artifact and agent registry migration applied."
       - name: Verify pgvector
         run: |
           echo "Verifying pgvector extension..."
@@ -125,6 +130,45 @@ jobs:
             exit 1
           fi
           echo "Policy version truncation was correctly rejected."
+      - name: Verify registry version immutability and identity constraints
+        run: |
+          echo "Verifying registry version immutability and identity constraints..."
+          docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO registry.artifact(artifact_type, artifact_id, name, owner_ref, tenant_id, lifecycle_status) VALUES ('agent', 'ci-agent', 'CI Agent', 'ci-owner', 'ci-tenant', 'DRAFT') ON CONFLICT DO NOTHING; INSERT INTO registry.artifact_version(artifact_type, artifact_id, version, content, content_digest, lifecycle_status, created_by) VALUES ('agent', 'ci-agent', '1.0', '{\"name\":\"ci-agent\"}', repeat('a',64), 'DRAFT', 'ci-user') ON CONFLICT DO NOTHING;"
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE registry.artifact_version SET content = '{\"name\":\"tampered\"}' WHERE artifact_type = 'agent' AND artifact_id = 'ci-agent' AND version = '1.0';"; then
+            echo "Artifact version mutation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Artifact version content mutation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM registry.artifact_version WHERE artifact_type = 'agent' AND artifact_id = 'ci-agent' AND version = '1.0';"; then
+            echo "Artifact version deletion unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Artifact version deletion was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE registry.artifact_version;"; then
+            echo "Artifact version truncation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Artifact version truncation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "INSERT INTO registry.artifact_version(artifact_type, artifact_id, version, content, content_digest, lifecycle_status, created_by) VALUES ('agent', 'ci-agent', '1.0', '{\"name\":\"ci-agent\"}', repeat('a',64), 'DRAFT', 'ci-user') ON CONFLICT DO NOTHING; INSERT INTO registry.agent(agent_id, name, owner_ref, tenant_id, lifecycle_status, risk_classification, data_classification) VALUES ('ci-agent', 'CI Agent', 'ci-owner', 'ci-tenant', 'DRAFT', 'low', 'internal') ON CONFLICT DO NOTHING; INSERT INTO registry.agent_version(agent_id, version, artifact_id_version, artifact_version, content, content_digest, lifecycle_status, created_by) VALUES ('ci-agent', '1.0', 'ci-agent', '1.0', '{\"name\":\"ci-agent\"}', repeat('a',64), 'DRAFT', 'ci-user') ON CONFLICT DO NOTHING;"
+          then
+            echo "Registry agent version seed failed"
+            exit 1
+          fi
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "UPDATE registry.agent_version SET capability_metadata = '{\"tampered\":true}' WHERE agent_id = 'ci-agent' AND version = '1.0';"; then
+            echo "Agent version mutation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Agent version content metadata mutation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM registry.agent_version WHERE agent_id = 'ci-agent' AND version = '1.0';"; then
+            echo "Agent version deletion unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Agent version deletion was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "TRUNCATE registry.agent_version;"; then
+            echo "Agent version truncation unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Agent version truncation was correctly rejected."
       - name: Verify immutable audit evidence
         run: |
           echo "Verifying immutable audit evidence..."
