@@ -7,6 +7,7 @@ const schemaNames = [
   "agent-version.schema.json",
   "dependency-reference.schema.json",
   "dependency-node.schema.json",
+  "dependency-target.schema.json",
   "dependency-edge.schema.json",
   "analyzer-finding.schema.json",
   "impact-query.schema.json",
@@ -35,9 +36,11 @@ test("dependency contract requires exactly one version selector", async () => {
   assert.deepEqual(oneOf[1]?.required, ["targetVersionConstraint"]);
 });
 
-test("dependency edge exposes source and target version identity without database row IDs", async () => {
+test("dependency edge exposes version identity and explicit unresolved constraints", async () => {
   const schema = JSON.parse(await readFile(new URL("../../../../packages/contracts/v1/dependency-edge.schema.json", import.meta.url), "utf8")) as Record<string, unknown>;
   const properties = schema.properties as Record<string, unknown>;
   assert.equal((properties.source as Record<string, unknown>)["$ref"], "dependency-node.schema.json");
-  assert.equal((properties.target as Record<string, unknown>)["$ref"], "dependency-node.schema.json");
+  assert.equal((properties.target as Record<string, unknown>)["$ref"], "dependency-target.schema.json");
+  assert.ok(properties.targetVersion);
+  assert.ok(properties.targetVersionConstraint);
 });
