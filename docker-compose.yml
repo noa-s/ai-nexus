@@ -17,7 +17,8 @@ services:
 
   api-edge:
     build:
-      context: ./apps/api-edge
+      context: .
+      dockerfile: apps/api-edge/Dockerfile
     environment:
       NODE_ENV: development
       PORT: 3000
@@ -32,6 +33,7 @@ services:
       context: ./workers/ai-data-worker
     environment:
       PYTHONUNBUFFERED: "1"
+      PYTHONPATH: /app/src
     depends_on:
       postgres:
         condition: service_healthy
