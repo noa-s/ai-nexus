@@ -28,10 +28,10 @@ export class SqlDependencyGraphStore implements DependencyGraphStore {
           relationship_type text, consumer_owner_reference text, declaration_origin text,
           source_repository_location text, analyzer_version text, tenant_id text
        );
-       INSERT INTO dependency.analyzer_finding (snapshot_id, code, severity, message, repository_path, line, column, artifact, dependency)
-       SELECT $1, code, severity, message, repository_path, line, column, artifact, dependency
+       INSERT INTO dependency.analyzer_finding (snapshot_id, code, severity, message, repository_path, line, column_number, artifact, dependency)
+       SELECT $1, code, severity, message, repository_path, line, column_number, artifact, dependency
        FROM jsonb_to_recordset($3::jsonb) AS f(
-          code text, severity text, message text, repository_path text, line integer, column integer,
+          code text, severity text, message text, repository_path text, line integer, column_number integer,
           artifact jsonb, dependency jsonb
        );
        COMMIT;`,
@@ -60,7 +60,7 @@ export class SqlDependencyGraphStore implements DependencyGraphStore {
   private async readSnapshot(row: SnapshotRow): Promise<GraphSnapshot> {
     const [edgesResult, findingsResult] = await Promise.all([
       this.query<EdgeRow>(`SELECT * FROM dependency.dependency_edge WHERE snapshot_id = $1 ORDER BY edge_id`, [row.snapshot_id]),
-      this.query<FindingRow>(`SELECT code, severity, message, repository_path, line, column, artifact, dependency FROM dependency.analyzer_finding WHERE snapshot_id = $1 ORDER BY finding_id`, [row.snapshot_id]),
+      this.query<FindingRow>(`SELECT code, severity, message, repository_path, line, column_number, artifact, dependency FROM dependency.analyzer_finding WHERE snapshot_id = $1 ORDER BY finding_id`, [row.snapshot_id]),
     ]);
 
     return {
@@ -75,7 +75,7 @@ export class SqlDependencyGraphStore implements DependencyGraphStore {
         message: item.message,
         repositoryPath: item.repository_path ?? undefined,
         line: item.line ?? undefined,
-        column: item.column ?? undefined,
+        column: item.column_number ?? undefined,
         artifact: item.artifact ?? undefined,
         dependency: item.dependency ?? undefined,
       })),
@@ -91,7 +91,7 @@ type EdgeRow = Record<string, unknown> & {
   relationship_type: string; consumer_owner_reference: string; declaration_origin: string;
   source_repository_location: string | null; analyzer_version: string; tenant_id: string | null;
 };
-type FindingRow = { code: string; severity: string; message: string; repository_path: string | null; line: number | null; column: number | null; artifact: never; dependency: never };
+type FindingRow = { code: string; severity: string; message: string; repository_path: string | null; line: number | null; column_number: number | null; artifact: never; dependency: never };
 
 function serializeEdge(edge: DependencyEdge) {
   return {
