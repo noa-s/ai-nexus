@@ -176,14 +176,22 @@ BEGIN
   END IF;
   IF OLD.agent_id IS DISTINCT FROM NEW.agent_id
     OR OLD.version IS DISTINCT FROM NEW.version
-    OR OLD.content IS DISTINCT FROM NEW.content
-    OR OLD.content_digest IS DISTINCT FROM NEW.content_digest
+    OR OLD.artifact_type IS DISTINCT FROM NEW.artifact_type
     OR OLD.artifact_type_version IS DISTINCT FROM NEW.artifact_type_version
     OR OLD.artifact_id_version IS DISTINCT FROM NEW.artifact_id_version
     OR OLD.artifact_version IS DISTINCT FROM NEW.artifact_version
+    OR OLD.content IS DISTINCT FROM NEW.content
+    OR OLD.content_digest IS DISTINCT FROM NEW.content_digest
+    OR OLD.capability_metadata IS DISTINCT FROM NEW.capability_metadata
+    OR OLD.model_constraints IS DISTINCT FROM NEW.model_constraints
+    OR OLD.tool_references IS DISTINCT FROM NEW.tool_references
+    OR OLD.knowledge_references IS DISTINCT FROM NEW.knowledge_references
+    OR OLD.evaluation_status IS DISTINCT FROM NEW.evaluation_status
+    OR OLD.deployment_status IS DISTINCT FROM NEW.deployment_status
+    OR OLD.access_requirements IS DISTINCT FROM NEW.access_requirements
+    OR OLD.declaration_schema_version IS DISTINCT FROM NEW.declaration_schema_version
     OR OLD.created_by IS DISTINCT FROM NEW.created_by
-    OR OLD.created_at IS DISTINCT FROM NEW.created_at
-    OR OLD.declaration_schema_version IS DISTINCT FROM NEW.declaration_schema_version THEN
+    OR OLD.created_at IS DISTINCT FROM NEW.created_at THEN
     RAISE EXCEPTION 'agent version identity/content is immutable';
   END IF;
   RETURN NEW;
@@ -208,6 +216,44 @@ DROP TRIGGER IF EXISTS agent_version_truncate_immutable ON registry.agent_versio
 CREATE TRIGGER agent_version_truncate_immutable
 BEFORE TRUNCATE ON registry.agent_version
 FOR EACH STATEMENT EXECUTE FUNCTION registry.prevent_agent_version_truncate();
+
+CREATE OR REPLACE FUNCTION registry.prevent_agent_version_child_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'agent version declarations are immutable';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS agent_policy_reference_immutable ON registry.agent_policy_reference;
+CREATE TRIGGER agent_policy_reference_immutable
+BEFORE UPDATE OR DELETE ON registry.agent_policy_reference
+FOR EACH ROW EXECUTE FUNCTION registry.prevent_agent_version_child_mutation();
+
+DROP TRIGGER IF EXISTS declared_dependency_immutable ON registry.declared_dependency;
+CREATE TRIGGER declared_dependency_immutable
+BEFORE UPDATE OR DELETE ON registry.declared_dependency
+FOR EACH ROW EXECUTE FUNCTION registry.prevent_agent_version_child_mutation();
+
+CREATE OR REPLACE FUNCTION registry.prevent_agent_version_child_truncate()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'agent version declarations are immutable';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS agent_policy_reference_truncate_immutable ON registry.agent_policy_reference;
+CREATE TRIGGER agent_policy_reference_truncate_immutable
+BEFORE TRUNCATE ON registry.agent_policy_reference
+FOR EACH STATEMENT EXECUTE FUNCTION registry.prevent_agent_version_child_truncate();
+
+DROP TRIGGER IF EXISTS declared_dependency_truncate_immutable ON registry.declared_dependency;
+CREATE TRIGGER declared_dependency_truncate_immutable
+BEFORE TRUNCATE ON registry.declared_dependency
+FOR EACH STATEMENT EXECUTE FUNCTION registry.prevent_agent_version_child_truncate();
 
 INSERT INTO platform.schema_metadata (key, value)
 VALUES ('migration_version', '003')
