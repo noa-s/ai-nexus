@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-nexus.local/contracts/v1/authorization-decision.schema.json",
+  "title": "AI Nexus Authorization Decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decisionId", "decision", "reasonCode", "requestId", "evaluatedAt"],
+  "properties": {
+    "decisionId": { "type": "string", "minLength": 1 },
+    "decision": { "enum": ["ALLOW", "DENY", "APPROVAL_REQUIRED"] },
+    "reasonCode": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1 },
+    "policyVersions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "evaluatedAt": { "type": "string", "format": "date-time" },
+    "traceId": { "type": "string", "minLength": 1 }
+  }
+}
