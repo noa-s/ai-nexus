@@ -45,6 +45,15 @@ CREATE TABLE IF NOT EXISTS authorization.role_assignment (
   PRIMARY KEY (principal_id, role_name, tenant_id)
 );
 
+CREATE TABLE IF NOT EXISTS authorization.service_permission (
+  caller_workload_id TEXT NOT NULL REFERENCES identity.workload(workload_id),
+  target_service TEXT NOT NULL,
+  action TEXT NOT NULL,
+  tenant_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (caller_workload_id, target_service, action, tenant_id)
+);
+
 CREATE TABLE IF NOT EXISTS policy.policy (
   policy_id TEXT PRIMARY KEY,
   policy_type TEXT NOT NULL,
@@ -100,19 +109,40 @@ CREATE TABLE IF NOT EXISTS authorization.event (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE OR REPLACE FUNCTION policy.prevent_policy_version_update()
+CREATE OR REPLACE FUNCTION policy.prevent_policy_version_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  RAISE EXCEPTION 'policy versions are immutable';
+  IF OLD.policy_id IS DISTINCT FROM NEW.policy_id
+    OR OLD.version IS DISTINCT FROM NEW.version
+    OR OLD.artifact_type IS DISTINCT FROM NEW.artifact_type
+    OR OLD.content IS DISTINCT FROM NEW.content
+    OR OLD.created_at IS DISTINCT FROM NEW.created_at THEN
+    RAISE EXCEPTION 'policy version content is immutable';
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
 DROP TRIGGER IF EXISTS policy_version_immutable ON policy.policy_version;
 CREATE TRIGGER policy_version_immutable
 BEFORE UPDATE OR DELETE ON policy.policy_version
-FOR EACH ROW EXECUTE FUNCTION policy.prevent_policy_version_update();
+FOR EACH ROW EXECUTE FUNCTION policy.prevent_policy_version_mutation();
+
+CREATE OR REPLACE FUNCTION authorization.prevent_event_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'authorization evidence is immutable';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS authorization_event_immutable ON authorization.event;
+CREATE TRIGGER authorization_event_immutable
+BEFORE UPDATE OR DELETE ON authorization.event
+FOR EACH ROW EXECUTE FUNCTION authorization.prevent_event_mutation();
 
 INSERT INTO platform.schema_metadata (key, value)
 VALUES ('migration_version', '002')
