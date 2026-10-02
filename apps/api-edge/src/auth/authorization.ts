@@ -87,15 +87,17 @@ export function authorizeServiceCall(
   targetService: string,
   action: string,
   policySet: AuthorizationPolicySet,
-  requestId = randomUUID(),
+  requestId?: string,
   traceId?: string,
 ): AuthorizationResult {
+  const resolvedRequestId = requestId ?? randomUUID();
+
   if (identity.principalType !== "workload" || !identity.workloadId) {
     return {
       decisionId: randomUUID(),
       decision: "DENY",
       reasonCode: "WORKLOAD_IDENTITY_REQUIRED",
-      requestId,
+      requestId: resolvedRequestId,
       policyVersions: [],
       evaluatedAt: new Date().toISOString(),
       traceId,
@@ -103,7 +105,7 @@ export function authorizeServiceCall(
   }
 
   return authorize(identity, {
-    requestId,
+    requestId: resolvedRequestId,
     tenantId: identity.tenantId,
     workload: identity.workloadId,
     action,
