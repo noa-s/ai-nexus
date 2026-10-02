@@ -1,10 +1,11 @@
 # AI Nexus v1 — Implementation Plan
 
-- **Status:** Draft — Stage 4.1
-- **Version:** 0.1
+- **Status:** Draft — Stage 4.2
+- **Version:** 0.2
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 - **Requirements baseline:** `docs/architecture/AI-Nexus-v1-Requirements-and-Architecture-Specification.md` v0.7
+- **Discovery baseline:** `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md` v0.1
 
 ## 1. Purpose
 
@@ -16,7 +17,7 @@ The implementation plan is derived from three sources that must all be consulted
 2. the v1 Requirements & Architecture Specification;
 3. the actual repository state on the current implementation branch.
 
-The specification is the implementation requirements index. The ADRs remain the authority for architectural decisions and constraints. Existing code describes current implementation state but does not override an accepted ADR or approved specification.
+The specification is the implementation requirements index. The ADRs remain the authority for architectural decisions and constraints. Existing code describes the current state but does not override an accepted ADR or approved specification.
 
 ## 2. Source-of-truth hierarchy
 
@@ -109,15 +110,16 @@ Acceptance evidence
 
 ## 6. Implementation hierarchy and dependency order
 
-The following is the **initial v1 execution order** derived from the accepted ADRs, specification, and current repository baseline. The order is intentionally conservative: a later step may not start merely because its code could be developed independently; it starts when its architectural prerequisites are complete.
+The following is the **initial v1 execution order** derived from the accepted ADRs, specification, repository baseline, and the Stage 4.2 discovery. The order is intentionally conservative: a later step may not start merely because its code could be developed independently; it starts when its architectural prerequisites are complete.
 
 ### Phase 1 — Foundation
 
-**Step 01 — Repository & Platform Foundation**
+**Step 01 — Repository & Platform Foundation** — `READY`
 
 - Dependencies: none
 - Detailed plan: `steps/01-repository-and-platform-foundation.md`
-- Covers: monorepo/service-module structure, Node.js/TypeScript and Python foundations, shared language-neutral contracts, PostgreSQL + pgvector foundation, configuration, service identity foundations, and CI baseline.
+- Discovery: `AI-Nexus-v1-Repository-and-Architecture-Discovery.md`
+- Covers: monorepo/service-module structure, Node.js/TypeScript and Python foundations, shared language-neutral contracts, PostgreSQL + pgvector foundation, configuration, service identity foundations, container development support, and CI baseline.
 
 ### Phase 2 — Control Plane foundations
 
@@ -227,8 +229,8 @@ Stage 4 is complete only when:
 
 ## 9. Current implementation baseline
 
-As of the Stage 4.1 inspection of `staging`, the repository is still primarily an architecture/governance baseline. The repository contains the accepted ADR set, the v1 specification, agent-governance guidance, and a minimal README; it does not yet contain the v1 application/service implementation. This means the first implementation step must establish the executable repository foundation rather than assuming an existing application scaffold.
+The Stage 4.2 discovery confirms that `staging` remains primarily an architecture/governance baseline. It contains the accepted ADR set, v1 specification, agent-governance guidance, implementation roadmap, and Step 01 contract, but no v1 application/service implementation. The detailed discovery and ADR-derived constraints are recorded in `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md`.
 
 ## 10. Next controlled action
 
-Only **Step 01** may proceed after this Stage 4 planning framework is reviewed/approved. Step 01 has its own detailed implementation contract and completion gate.
+**Step 01 is now READY.** No implementation capability outside the Step 01 contract may be activated until Step 01 is complete under its acceptance criteria and Definition of Done.

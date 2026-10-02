@@ -1,9 +1,10 @@
 # Step 01 — Repository & Platform Foundation
 
-- **Status:** PLANNED
+- **Status:** READY
 - **Step:** 01
 - **Depends on:** None
 - **Parent plan:** `docs/implementation/AI-Nexus-v1-Implementation-Plan.md`
+- **Discovery:** `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md`
 
 ## 1. Purpose
 
@@ -34,7 +35,9 @@ Establish the executable repository foundation required by every subsequent AI N
 
 ## 3. Current repository baseline
 
-The `staging` repository currently contains the accepted ADRs, v1 architecture specification, agent-governance guidance, and a minimal README. It does not yet contain the v1 application/service implementation. Step 01 therefore starts from a documentation-first repository rather than extending an existing application scaffold.
+The Stage 4.2 discovery confirmed that `staging` contains the accepted ADRs, v1 architecture specification, agent-governance guidance, implementation roadmap, and this step contract, but no v1 application/service implementation. Step 01 therefore starts from a documentation-first repository rather than extending an existing application scaffold.
+
+See `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md` for the full repository and ADR-derived discovery record.
 
 ## 4. Scope
 
