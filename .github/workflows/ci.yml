@@ -10,8 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build and start Node API container
-        run: docker compose build api-edge && docker compose up -d postgres api-edge
+      - name: Build Node API container
+        run: docker compose build api-edge
+      - name: Run Node tests in container
+        run: docker compose run --rm api-edge npm test --workspace @ai-nexus/api-edge
+      - name: Start Node API container
+        run: docker compose up -d postgres api-edge
       - name: Wait for API readiness
         run: |
           for attempt in $(seq 1 30); do
@@ -29,19 +33,17 @@ jobs:
 
   python-foundation:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: workers/ai-data-worker
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: python -m compileall -q src tests
-      - run: PYTHONPATH=src python -m unittest discover -s tests
-      - name: Cleanup Docker resources if present
+      - name: Build Python worker container
+        run: docker compose build ai-data-worker
+      - name: Run Python tests in container
+        run: docker compose run --rm ai-data-worker python -m unittest discover -s tests
+      - name: Run Python compile check in container
+        run: docker compose run --rm ai-data-worker python -m compileall -q src tests
+      - name: Cleanup
         if: always()
-        run: docker compose -f ../../docker-compose.yml down -v
+        run: docker compose down -v
 
   database-foundation:
     runs-on: ubuntu-latest
