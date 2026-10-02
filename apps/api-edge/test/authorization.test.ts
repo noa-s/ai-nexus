@@ -18,6 +18,8 @@ import { authorizeRuntimeAction } from "../src/auth/runtime-authorization.js";
 import { createSignedToken, verifySignedToken } from "../src/auth/signed-token.js";
 
 const secret = "test-secret";
+process.env.AUTH_TOKEN_SECRET = secret;
+
 const identity = {
   subject: "user-1",
   principalType: "human" as const,
