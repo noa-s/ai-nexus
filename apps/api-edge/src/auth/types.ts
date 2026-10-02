@@ -30,6 +30,12 @@ export interface AuthorizationResult {
   decision: AuthorizationDecision;
   reasonCode: string;
   requestId: string;
+  tenantId: string;
+  actor?: string;
+  workload?: string;
+  agent?: string;
+  action: string;
+  target: string;
   policyVersions: string[];
   evaluatedAt: string;
   traceId?: string;
