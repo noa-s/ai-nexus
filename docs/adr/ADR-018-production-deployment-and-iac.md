@@ -1,6 +1,6 @@
 # ADR-018: Production-Like Deployment and Infrastructure as Code
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
