@@ -1,7 +1,7 @@
 # AI Nexus v1 — Requirements & Architecture Specification
 
-- **Status:** Draft — Stage 3B.3
-- **Version:** 0.3
+- **Status:** Draft — Stage 3B.4
+- **Version:** 0.4
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 
@@ -133,6 +133,19 @@ Primary use cases include governed Agent invocation; Agent registration/versioni
 - **FR-DEP-002:** Deployment artifacts MUST be immutable/versioned.
 - **FR-DEP-003:** Infrastructure MUST be reproducible through Terraform/IaC.
 - **FR-DEP-004:** CI/CD MUST enforce defined dependency, security, evaluation, and release gates.
+
+## 5.8 Governance, security, evaluation, observability and FinOps
+
+- **FR-GOV-001:** Authorization decisions MUST identify the effective policy and policy version used.
+- **FR-GOV-002:** Policy conflicts MUST resolve deterministically according to an explicit evaluation order.
+- **FR-GOV-003:** Denials and material policy decisions MUST be observable and auditable.
+- **FR-SEC-001:** AI-specific threats MUST be represented in the security control model and release process.
+- **FR-SEC-002:** Security controls MUST cover ingress, retrieval, model interaction, tool execution, secrets, data egress and supply chain boundaries.
+- **FR-EVAL-003:** v1 evaluation MUST produce machine-readable results that can participate in release decisions.
+- **FR-EVAL-004:** Evaluation results MUST identify the evaluated artifact set, dataset/configuration and evaluator version.
+- **FR-OBS-002:** Causal traces MUST preserve decision and dependency relationships, not only chronological logs.
+- **FR-FIN-003:** Cost records MUST be attributable to an execution/workflow and pricing configuration where usage data permits.
+- **FR-FIN-004:** Business-value evidence MUST remain separately attributable from infrastructure/AI cost evidence.
 
 # 6. Non-Functional Requirements
 
@@ -396,7 +409,273 @@ Python MUST NOT create an alternate uncontrolled LLM path. Cross-runtime communi
 - **AC-ARCH-001:** Data and runtime architecture remain sections of this single authoritative specification.
 - **AC-ADR-001:** No section supersedes or duplicates accepted ADR authority.
 
-# 15. Traceability and Change Management
+# 15. Governance and Authorization
+
+## 15.1 Authorization decision model
+
+Authorization is an explicit runtime decision at protected action boundaries. The v1 contract MUST expose enough context to determine the caller, requested capability/action, target resource, relevant artifact versions, applicable policy versions, and execution correlation.
+
+Conceptual flow:
+
+```text
+Caller identity
+      ↓
+Requested action + resource
+      ↓
+RBAC baseline
+      ↓
+Applicable immutable policy versions
+      ↓
+Context/data/tool constraints
+      ↓
+Deterministic authorization decision
+      ↓
+Allow / Deny / Require approval
+```
+
+An LLM, Agent plan, retrieved document, tool output, or user-provided content MUST NOT produce the final authorization decision.
+
+## 15.2 Effective policy and conflicts
+
+The runtime MUST identify the effective policy set and versions used for each material authorization decision. Policy evaluation order MUST be deterministic and documented by the implementation contract.
+
+Where constraints conflict, the implementation MUST resolve the conflict according to an explicit precedence rule rather than relying on evaluation order that is incidental to code execution.
+
+A policy decision MUST include at minimum:
+
+- decision: allow, deny, or approval-required;
+- subject/service identity;
+- action and resource;
+- effective policy/version references;
+- decision reason/category;
+- execution correlation;
+- timestamp and evaluator version where applicable.
+
+## 15.3 Auditor and read-only access
+
+Auditor access MUST remain read-oriented and MUST use a dedicated identity. Auditor workflows MAY inspect evidence, traces, policies, evaluation results, dependency history, and FinOps evidence, but MUST NOT gain remediation authority merely through auditor status.
+
+**Basis:** ADR-010, ADR-017.
+
+# 16. Security Architecture and Threat Model
+
+The v1 threat model treats AI-specific behavior as an extension of conventional enterprise security rather than as a replacement for it.
+
+## 16.1 Threat/control matrix
+
+| Threat | Primary control boundary | v1 control requirement |
+|---|---|---|
+| Prompt injection | model input boundary | untrusted-input handling; policy-constrained execution |
+| Indirect prompt injection | RAG/content boundary | content treated as untrusted; retrieval does not grant authority |
+| Data exfiltration | authorization/egress boundary | action/data authorization before release |
+| Excessive agency | Agent/Tool boundary | proposal → authorization → approval → execution |
+| Tool abuse | Tool/MCP boundary | registered tools, scoped identity, policy checks, audit evidence |
+| Confused deputy | identity boundary | preserve caller/service identity and authorization context |
+| Secret exposure | credential boundary | credentials injected only into governed tool/provider execution |
+| Provider compromise/failure | Gateway boundary | provider isolation, bounded fallback, observable failures |
+| Cost abuse | Gateway/FinOps boundary | budgets/limits, usage tracking and anomalous-cost visibility |
+| Supply-chain risk | artifact/CI boundary | dependency analysis, immutable versions and release gates |
+| Governance bypass | service boundary | no direct alternate execution or data-mutation paths |
+| Evaluation bypass | release boundary | required evaluation evidence before protected release |
+
+## 16.2 Security invariants
+
+- No runtime component may bypass the LLM Gateway for governed LLM execution.
+- No Agent or model output may authorize itself or another action.
+- No tool may receive unrestricted credentials.
+- No retrieval result may expand a caller's data permissions.
+- No service may mutate another domain's owned data through direct database access.
+- Security and governance failures MUST be observable and MUST NOT silently downgrade into uncontrolled execution.
+
+## 16.3 Security evidence
+
+Material security decisions and enforcement events MUST be linked to the execution correlation and relevant policy/artifact versions. Sensitive payloads MUST be minimized in telemetry and audit records.
+
+**Basis:** ADR-011, with authorization and runtime enforcement from ADR-010, ADR-017, and ADR-008.
+
+# 17. Evaluation and Scoring
+
+## 17.1 Evaluation model
+
+Evaluation is a governed artifact-driven capability. An evaluation run MUST identify:
+
+- evaluated artifact/version set;
+- evaluation configuration/version;
+- dataset/test-case version;
+- evaluator/metric version;
+- execution/model configuration where relevant;
+- timestamp/environment;
+- individual results and aggregate results.
+
+The same evaluation model supports pre-production gates and production monitoring; the execution context distinguishes the two.
+
+## 17.2 Metric classes
+
+v1 MUST support multiple metric classes rather than assuming one universal score:
+
+| Class | Examples | Intended use |
+|---|---|---|
+| Deterministic | schema validity, exact match, policy compliance | hard gates where objective |
+| Retrieval | recall/precision-style measures, provenance completeness | RAG quality |
+| Safety/governance | prohibited-action rate, authorization-bypass rate | release/security gates |
+| Semantic | relevance, groundedness, answer quality | model/agent quality |
+| Operational | latency, failure/retry rate, tool success | reliability |
+| Cost | cost per execution/task | FinOps-aware optimization |
+
+LLM-as-judge MAY be used where semantic assessment requires it, but its evaluator/model/version MUST be recorded and it MUST NOT silently replace deterministic checks where deterministic checks are sufficient.
+
+## 17.3 Scoring and release gates
+
+Scores MUST retain their metric definitions and evaluator versions. Aggregate scores MUST NOT erase individual metric results.
+
+A release gate MUST define:
+
+```text
+Evaluation configuration
+      ↓
+Required metrics
+      ↓
+Thresholds / blocking rules
+      ↓
+Evaluation run
+      ↓
+Pass / Fail / Review-required
+```
+
+A single composite score MUST NOT be treated as a universal authorization to release. Security, governance, and critical regression gates may remain independently blocking.
+
+## 17.4 Evaluation evidence
+
+Evaluation results MUST be queryable by artifact/version and comparable across versions when the metric definition and dataset basis are compatible. Incompatible evaluation configurations MUST be identified rather than presented as directly comparable scores.
+
+**Basis:** ADR-012.
+
+# 18. Causal Observability
+
+## 18.1 Causal execution model
+
+Observability MUST represent causal relationships between decisions and downstream actions, not merely a chronological stream of logs.
+
+Conceptual graph:
+
+```text
+Request
+ ├─ authentication / authorization
+ ├─ artifact resolution
+ ├─ agent resolution
+ ├─ planning
+ ├─ LLM call
+ ├─ retrieval
+ │   ├─ authorization
+ │   ├─ vector search
+ │   └─ provenance
+ ├─ tool proposal
+ ├─ tool authorization
+ ├─ approval
+ ├─ tool execution
+ └─ response validation
+```
+
+## 18.2 Event requirements
+
+A material event SHOULD include:
+
+- event identifier and parent/correlation identifiers;
+- execution and step identifiers;
+- actor/service identity;
+- event type and outcome;
+- artifact/policy/model/tool/knowledge references where relevant;
+- timestamps and duration where relevant;
+- decision reason/category where relevant;
+- links to child operations.
+
+Sensitive content SHOULD be represented by references, hashes, classifications, or redacted summaries rather than unrestricted payload capture.
+
+## 18.3 Causal queries
+
+v1 observability MUST support at least these investigation questions:
+
+1. Why was this action allowed or denied?
+2. Which Agent/model/policy/knowledge/tool versions participated?
+3. Which upstream decision caused this downstream action?
+4. What changed between two executions?
+5. What was the cost and operational outcome of this execution?
+
+## 18.4 Retention and evidence
+
+Trace and audit retention policies MUST distinguish operational telemetry from governance evidence. Historical evidence required for reproducibility MUST survive ordinary telemetry expiration or be retained through an appropriate durable evidence mechanism.
+
+**Basis:** ADR-013.
+
+# 19. AI FinOps and Business Value
+
+## 19.1 Cost attribution
+
+v1 cost attribution MUST distinguish at least:
+
+```text
+Provider/model usage cost
+        +
+Platform/runtime operational cost
+        +
+Workflow/application operational cost
+        ↓
+Total attributable AI cost
+```
+
+Where supported, usage MUST be associated with execution, agent, model/provider, environment, tenant/business unit, and relevant artifact versions.
+
+Historical calculations MUST use the applicable pricing configuration/version rather than assuming today's pricing applies retrospectively.
+
+## 19.2 Business value
+
+Business-value evidence MUST remain distinct from cost evidence. A value record MAY reference:
+
+- business outcome metric;
+- baseline/comparison period;
+- measured result;
+- attribution confidence or methodology;
+- business owner;
+- related workflow/Agent/version;
+- evidence timestamp.
+
+The platform MUST NOT represent an unverified business-value estimate as a measured financial outcome.
+
+## 19.3 FinOps decision surfaces
+
+v1 SHOULD support analysis such as:
+
+- cost by Agent/version;
+- cost by model/provider;
+- cost per execution/task;
+- cost by environment or business unit;
+- quality/cost comparisons across versions;
+- anomalous or unexpectedly expensive executions;
+- business-value evidence alongside cost without conflating the two.
+
+## 19.4 Budget and control signals
+
+Budget limits and cost alerts MAY be enforcement inputs where supported, but cost optimization MUST remain subordinate to security, authorization, capability, and required quality constraints.
+
+**Basis:** ADR-014, with routing requirements from ADR-007.
+
+# 20. Stage 3B.4 Acceptance Criteria
+
+- **AC-GOV-001:** Every protected action produces a deterministic authorization outcome tied to identity, action/resource, and applicable policy versions.
+- **AC-GOV-002:** Policy conflicts follow an explicit documented precedence/evaluation order.
+- **AC-GOV-003:** Auditor access is read-oriented and does not confer remediation authority.
+- **AC-SEC-001:** v1 threat/control coverage includes prompt injection, indirect injection, data exfiltration, excessive agency, tool abuse, confused deputy, secret exposure, provider failure, cost abuse, supply-chain risk, and governance bypass.
+- **AC-SEC-002:** Security/governance failures cannot silently bypass controlled execution paths.
+- **AC-EVAL-001:** Evaluation runs are reproducible by versioned artifact, dataset/configuration, evaluator and metric definitions.
+- **AC-EVAL-002:** Release gates can independently block on critical security/governance regressions.
+- **AC-EVAL-003:** Deterministic checks are preferred where sufficient; semantic judges are versioned when used.
+- **AC-OBS-001:** A material execution can be reconstructed as a causal decision graph.
+- **AC-OBS-002:** Investigation can identify the artifact/policy/model/knowledge/tool versions responsible for a material action.
+- **AC-FIN-001:** Cost can be attributed to execution/workflow and applicable pricing configuration where usage data permits.
+- **AC-FIN-002:** Business-value evidence remains distinct from cost and can identify its measurement basis.
+- **AC-TRACE-002:** Governance evidence remains available beyond ordinary operational telemetry retention where required for historical interpretation.
+
+# 21. Traceability and Change Management
 
 Traceability follows:
 
@@ -408,6 +687,6 @@ When an accepted ADR changes, affected requirements, interfaces, data contracts,
 
 ## Current Stage
 
-**Stage 3B.3 — Data Architecture + Runtime Architecture.**
+**Stage 3B.4 — Governance + Security + Evaluation + Causal Observability + AI FinOps/Business Value.**
 
 No application implementation should begin until the v1 specification is sufficiently defined and reviewed.
