@@ -1,3 +1,5 @@
+import type { IdentityContext } from "../auth/types.js";
+
 export const ARTIFACT_TYPES = [
   "agent",
   "prompt",
@@ -22,8 +24,8 @@ export const LIFECYCLE_STATES = [
 ] as const;
 
 export type LifecycleState = (typeof LIFECYCLE_STATES)[number];
-
 export type DependencyRelationship = "runtime" | "governance";
+export type RegistryActor = IdentityContext;
 
 export interface ArtifactIdentity {
   artifactType: ArtifactType;
@@ -106,13 +108,6 @@ export interface AgentArtifactDeclaration {
   dependencies: DependencyReference[];
   policyReferences: PolicyReference[];
   capabilityMetadata: Record<string, unknown>;
-}
-
-export interface RegistryActor {
-  subject: string;
-  principalType: "human" | "workload";
-  tenantId: string;
-  roles: readonly string[];
 }
 
 export interface RegistryAuthorization {
