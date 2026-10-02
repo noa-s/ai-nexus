@@ -115,6 +115,11 @@ jobs:
             exit 1
           fi
           echo "Policy content mutation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM policy.policy_version WHERE policy_id = 'ci-policy' AND version = '1';"; then
+            echo "Policy version deletion unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Policy version deletion was correctly rejected."
       - name: Verify immutable audit evidence
         run: |
           echo "Verifying immutable audit evidence..."
@@ -124,6 +129,11 @@ jobs:
             exit 1
           fi
           echo "Audit evidence mutation was correctly rejected."
+          if docker compose exec -T postgres psql -U ai_nexus -d ai_nexus --set ON_ERROR_STOP=1 -c "DELETE FROM authorization.event WHERE event_id = '00000000-0000-0000-0000-000000000001';"; then
+            echo "Audit evidence deletion unexpectedly succeeded"
+            exit 1
+          fi
+          echo "Audit evidence deletion was correctly rejected."
       - name: Cleanup
         if: always()
         run: |
