@@ -1,6 +1,6 @@
 # ADR-009: Governed RAG, Provenance, and Source Versioning
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
