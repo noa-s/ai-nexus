@@ -8,7 +8,8 @@
   "properties": {
     "edgeId": { "type": "string", "minLength": 1 },
     "source": { "$ref": "dependency-node.schema.json" },
-    "target": { "$ref": "dependency-node.schema.json" },
+    "target": { "$ref": "dependency-target.schema.json" },
+    "targetVersion": { "type": "string", "minLength": 1 },
     "targetVersionConstraint": { "type": "string", "minLength": 1 },
     "relationshipType": { "type": "string", "enum": ["runtime", "governance"] },
     "consumerOwnerReference": { "type": "string", "minLength": 1 },
@@ -20,8 +21,8 @@
   "allOf": [
     {
       "oneOf": [
-        { "not": { "required": ["targetVersionConstraint"] } },
-        { "required": ["targetVersionConstraint"] }
+        { "required": ["targetVersion"], "not": { "required": ["targetVersionConstraint"] } },
+        { "required": ["targetVersionConstraint"], "not": { "required": ["targetVersion"] } }
       ]
     }
   ]
