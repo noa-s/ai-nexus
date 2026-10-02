@@ -1,11 +1,11 @@
 # AI Nexus v1 — Implementation Plan
 
-- **Status:** Draft — Stage 4.2 — Step 02 In Progress
-- **Version:** 0.3
+- **Status:** Draft — Stage 4.2 — Step 03 In Progress
+- **Version:** 0.4
 - **Date:** 2026-10-02
 - **Architectural baseline:** Accepted ADR-001 through ADR-018
 - **Requirements baseline:** `docs/architecture/AI-Nexus-v1-Requirements-and-Architecture-Specification.md` v0.7
-- **Discovery baseline:** `docs/implementation/AI-Nexus-v1-Repository-and-Architecture-Discovery.md` v0.1
+- **Discovery baseline:** `AI-Nexus-v1-Repository-and-Architecture-Discovery.md` v0.1
 
 ## 1. Purpose
 
@@ -124,17 +124,20 @@ The following is the **initial v1 execution order** derived from the accepted AD
 
 ### Phase 2 — Control Plane foundations
 
-**Step 02 — Identity, Authorization & Policy Foundation** — `IN PROGRESS`
+**Step 02 — Identity, Authorization & Policy Foundation** — `COMPLETE`
 
 - Depends on: Step 01
 - Detailed plan: `steps/02-identity-authorization-and-policy-foundation.md`
-- Current branch: `impl/step-02-identity-authorization-policy-foundation-v2`
+- Completion evidence: PR #18 merged to `staging` at merge commit `dee4be728c2683af1c1daa1cc97f52f2fe58a5aa`; PR validation passed before merge.
 - Establishes the shared authorization/policy boundary, workload/service identity authorization, immutable policy foundation, Auditor role boundary, protected service-to-service communication, and the initial language-neutral authorization contracts before protected runtime capabilities.
 
-**Step 03 — Artifact, Agent & Version Registry**
+**Step 03 — Artifact, Agent & Version Registry** — `IN PROGRESS`
 
 - Depends on: Step 02
-- Establishes immutable artifacts, Agent registration/versioning, lifecycle metadata, and runtime version references.
+- Detailed plan: `steps/03-artifact-agent-and-version-registry.md`
+- Current branch: `impl/step-03-artifact-agent-version-registry`
+- Establishes the authoritative Artifact/Agent Registry, immutable version identity, Agent registration/versioning, lifecycle metadata, exact policy-version references, declared dependency-reference contracts, scoped registry authorization, and registry audit behavior.
+- Explicitly does not implement the Dependency Analyzer, Model Registry, Agent Runtime, LLM Gateway, RAG Runtime, Tool/MCP Runtime, or Marketplace.
 
 **Step 04 — Dependency Analyzer & Impact Graph**
 
@@ -232,8 +235,8 @@ Stage 4 is complete only when:
 
 ## 9. Current implementation baseline
 
-Step 01 is complete and merged to `staging`. Step 02 is now the current controlled implementation step. Its detailed execution contract is defined in `steps/02-identity-authorization-and-policy-foundation.md`.
+Steps 01 and 02 are complete and merged to `staging`. Step 03 is now the current controlled implementation step. Its detailed execution contract is defined in `steps/03-artifact-agent-and-version-registry.md`.
 
 ## 10. Current controlled action
 
-**Step 02 is IN PROGRESS.** Implementation must remain within the Step 02 scope and Definition of Done. No Step 03 work may begin until Step 02 is complete and verified on `staging`.
+**Step 03 is IN PROGRESS.** Implementation must remain within the Step 03 scope and Definition of Done. No Step 04 or Step 05 work may begin until Step 03 is complete and verified on `staging`.
