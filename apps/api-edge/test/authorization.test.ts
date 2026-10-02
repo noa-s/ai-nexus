@@ -37,6 +37,11 @@ test("signed identity token round-trips without exposing a secret", () => {
   assert.equal(verifySignedToken(token, "wrong-secret", 1_700_000_010_000), null);
 });
 
+test("expired signed identity tokens are rejected", () => {
+  const token = createSignedToken(identity, secret, 1, 1_700_000_000_000);
+  assert.equal(verifySignedToken(token, secret, 1_700_000_002_000), null);
+});
+
 test("signed workload identity token preserves workloadId and omits absent agentId", () => {
   const workloadIdentity = {
     ...identity,
