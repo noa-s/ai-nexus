@@ -11,7 +11,7 @@ const identity = { subject: "user-1", principalType: "human" as const, tenantId:
 function request(authorization?: string): any {
   return { headers: authorization ? { authorization } : {} };
 }
-function response() {
+function createResponse() {
   const result = { statusCode: 0, body: "" };
   return {
     result,
@@ -24,21 +24,21 @@ function response() {
 
 test("rejects missing and malformed authorization headers", () => {
   for (const authorization of [undefined, "Basic abc"]) {
-    const { result, response } = response();
+    const { result, response } = createResponse();
     assert.equal(requireAuthorization(request(authorization), response, "resource.read", "protected-resource", () => { throw new Error("unused"); }, new InMemoryAuditEventStore()), false);
     assert.equal(result.statusCode, 401);
   }
 });
 
 test("rejects invalid signed tokens", () => {
-  const { result, response } = response();
+  const { result, response } = createResponse();
   assert.equal(requireAuthorization(request("Bearer invalid"), response, "resource.read", "protected-resource", () => { throw new Error("unused"); }, new InMemoryAuditEventStore()), false);
   assert.equal(result.statusCode, 401);
 });
 
 test("allows an authorized request", () => {
   const token = createSignedToken(identity, secret);
-  const { result, response } = response();
+  const { result, response } = createResponse();
   assert.equal(requireAuthorization(request(`Bearer ${token}`), response, "resource.read", "protected-resource", () => ({
     roles: [{ name: "user", permissions: [{ action: "resource.read", target: "protected-resource", tenantId: "tenant-1" }] }],
     policies: [{ id: "policy.read", version: "1", effect: "ALLOW", action: "resource.read", target: "protected-resource", tenantId: "tenant-1", role: "user", priority: 1 }],
@@ -48,14 +48,14 @@ test("allows an authorized request", () => {
 
 test("denies an unauthorized request", () => {
   const token = createSignedToken(identity, secret);
-  const { result, response } = response();
+  const { result, response } = createResponse();
   assert.equal(requireAuthorization(request(`Bearer ${token}`), response, "resource.delete", "protected-resource", () => ({ roles: [], policies: [] }), new InMemoryAuditEventStore()), false);
   assert.equal(result.statusCode, 403);
 });
 
 test("fails closed when policy lookup fails", () => {
   const token = createSignedToken(identity, secret);
-  const { result, response } = response();
+  const { result, response } = createResponse();
   assert.equal(requireAuthorization(request(`Bearer ${token}`), response, "resource.read", "protected-resource", () => { throw new Error("policy unavailable"); }, new InMemoryAuditEventStore()), false);
   assert.equal(result.statusCode, 503);
 });

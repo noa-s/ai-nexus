@@ -20,8 +20,8 @@ function signedPayload(payload: Record<string, unknown>): string {
 test("round-trips human identity without optional claims", () => {
   const token = createSignedToken(identity, secret, 60, 1_700_000_000_000);
   assert.deepEqual(verifySignedToken(token, secret, 1_700_000_010_000), identity);
-  assert.equal(Object.hasOwn(verifySignedToken(token, secret)!, "workloadId"), false);
-  assert.equal(Object.hasOwn(verifySignedToken(token, secret)!, "agentId"), false);
+  assert.equal(Object.hasOwn(verifySignedToken(token, secret, 1_700_000_010_000)!, "workloadId"), false);
+  assert.equal(Object.hasOwn(verifySignedToken(token, secret, 1_700_000_010_000)!, "agentId"), false);
 });
 
 test("round-trips workload identity", () => {
