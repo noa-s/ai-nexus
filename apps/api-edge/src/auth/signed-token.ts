@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { IdentityContext } from "./types.js";
+import type { IdentityContext, PrincipalType } from "./types.js";
 
 interface TokenPayload extends IdentityContext {
   exp: number;
@@ -10,6 +10,10 @@ const decode = (value: string): string => Buffer.from(value, "base64url").toStri
 
 const signature = (body: string, secret: string): string =>
   createHmac("sha256", secret).update(body).digest("base64url");
+
+const isPrincipalType = (value: unknown): value is PrincipalType => value === "human" || value === "workload";
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 
 export function verifySignedToken(token: string, secret: string, now = Date.now()): IdentityContext | null {
   const parts = token.split(".");
@@ -23,8 +27,10 @@ export function verifySignedToken(token: string, secret: string, now = Date.now(
 
   try {
     const payload = JSON.parse(decode(encodedPayload)) as TokenPayload;
-    if (!payload.subject || !payload.tenantId || !payload.principalType || !Array.isArray(payload.roles)) return null;
-    if (payload.exp * 1000 <= now) return null;
+    if (!payload.subject || !payload.tenantId || !isPrincipalType(payload.principalType) || !isStringArray(payload.roles)) return null;
+    if (!Number.isFinite(payload.exp) || payload.exp * 1000 <= now) return null;
+    if (payload.workloadId !== undefined && typeof payload.workloadId !== "string") return null;
+    if (payload.agentId !== undefined && typeof payload.agentId !== "string") return null;
 
     const identity: IdentityContext = {
       subject: payload.subject,
